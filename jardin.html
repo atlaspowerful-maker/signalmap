@@ -5,8 +5,17 @@
 <style>
  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
  #map{position:absolute;inset:0}
- #ctrl{position:absolute;top:10px;left:10px;z-index:1000;background:#fff;border-radius:12px;
-  box-shadow:0 2px 12px rgba(0,0,0,.25);padding:12px 14px;font-size:13px;color:#1a1a1a;width:256px;max-height:94%;overflow:auto}
+ #ctrl{position:absolute;top:10px;left:10px;z-index:1000;background:rgba(255,255,255,.82);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);border-radius:12px;
+  box-shadow:0 2px 12px rgba(0,0,0,.25);padding:10px 13px;font-size:13px;color:#1a1a1a;width:250px;max-height:94%;overflow:auto}
+ #ctrl.hidden{display:none}
+ #ctrlToggle{position:absolute;top:10px;left:10px;z-index:1001;display:none;background:rgba(255,255,255,.9);border:none;border-radius:10px;
+  padding:8px 11px;font-size:17px;box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:pointer}
+ #ctrlToggle.show{display:block}
+ #ctrlHide{background:none;border:none;font-size:16px;color:#888;cursor:pointer;padding:0 2px}
+ details{margin:7px 0 2px}
+ details summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:4px}
+ details summary::before{content:'▸';font-size:10px;color:#999;transition:transform .15s}
+ details[open] summary::before{transform:rotate(90deg)}
  #ctrl h1{font-size:15px;margin:0 0 2px}.sub{color:#777;font-size:11px;margin:0 0 8px;line-height:1.4}
  .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#888;margin:9px 0 4px}
  .row{display:flex;flex-wrap:wrap;gap:5px}
@@ -17,14 +26,23 @@
  .sw{width:16px;height:11px;border-radius:2px;display:inline-block}
 </style></head><body>
 <div id="map"></div>
+<button id="ctrlToggle" title="Afficher les filtres">📡</button>
 <div id="ctrl">
- <h1>Micro-simulation du jardin</h1>
- <p class="sub">Ta zone tracée + 9 rangs autour (~27 m) · cellules de 3 m · ombres de la maison et des haies calculées rayon par rayon (IGN BD TOPO + relief).</p>
+ <div style="display:flex;justify-content:space-between;align-items:center">
+  <h1>Micro-simulation du jardin</h1>
+  <button id="ctrlHide" title="Masquer le panneau">✕</button>
+ </div>
+ <details><summary class="lbl">À propos</summary>
+ <p class="sub">Ta zone tracée + 9 rangs autour (~27 m) · cellules de 3 m · ombres de la maison et des haies calculées rayon par rayon (IGN BD TOPO + relief).</p></details>
  <div class="lbl">Opérateur</div><div class="row" id="ops"></div>
- <div class="lbl">4G — bande</div><div class="row" id="sc4"></div>
- <div class="lbl">5G — bande</div><div class="row" id="sc5"></div>
+ <div class="row" id="scauto" style="margin-top:7px"></div>
+ <details open><summary class="lbl">Bandes 4G / 5G (manuel)</summary>
+  <div class="row" id="sc4"></div>
+  <div class="row" id="sc5" style="margin-top:5px"></div>
+ </details>
  <div class="lbl">Vue</div><div class="row" id="modes"></div>
- <div class="lbl">Niveau de signal</div>
+ <div id="autoLeg" style="display:none"></div>
+ <details><summary class="lbl">Niveau de signal</summary>
  <div id="leg">
   <div><span class="sw" style="background:#1f9e75"></span> excellent (≥ −85 dBm)</div>
   <div><span class="sw" style="background:#7bc043"></span> bon (−85…−95)</div>
@@ -36,7 +54,7 @@
   <div><span class="sw" style="background:#7A3CB8"></span> 🚀 meilleur spot 5G (si captable)</div>
   <div><span class="sw" style="background:#ffd700"></span> doré plein : top 3 sur ton terrain</div>
   <div><span class="sw" style="background:#ffd700;opacity:.55"></span> doré pointillé : top 3 à l'extérieur</div>
- </div>
+ </div></details>
  <p class="muted" id="note"></p>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
@@ -47,6 +65,16 @@ const LBL={'4G700':'700','4G800':'800','4G1800':'1800','4G2100':'2100','4G2600':
 const SCI={};P.sc.forEach((s,i)=>SCI[s]=i);
 const FRQ={'4G700':'700','4G800':'800','4G1800':'1800','4G2100':'2100','4G2600':'2600','5G700':'700','5G2100':'2100','5G3500':'3500'};
 let curOp=0,curSc='4G800',mode='out';
+const BANDF={'4G700':700,'4G800':800,'4G1800':1800,'4G2100':2100,'4G2600':2600,'5G700':700,'5G2100':2100,'5G3500':3500};
+const BANDCOL={700:'#12A594',800:'#1E6Fd6',1800:'#7A3CB8',2100:'#D4537E',2600:'#BA7517',3500:'#e02424'};
+const PREF=['5G3500','4G2600','5G2100','4G2100','4G1800','5G700','4G800','4G700'];
+function getWin(r){
+  let best=null,bv=-1e9;
+  for(const sc of PREF){const v=r[3+curOp*NS+SCI[sc]];if(v>-900&&v>-105){best=sc;bv=v;break;}}
+  if(!best){P.sc.forEach(sc=>{const v=r[3+curOp*NS+SCI[sc]];if(v>-900&&v>bv){bv=v;best=sc;}});}
+  return best?{sc:best,v:bv}:null;
+}
+function valAt(r){if(curSc==='AUTO'){const w=getWin(r);return w?w.v:-999;}return r[3+curOp*NS+SCI[curSc]];}
 const map=L.map('map',{preferCanvas:true,maxZoom:21});
 const ign=L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxZoom:21,maxNativeZoom:19,attribution:'© IGN'});
 const plan=L.tileLayer('https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/png&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}',{maxZoom:21,maxNativeZoom:19,attribution:'© IGN'});
@@ -57,26 +85,45 @@ const cells=L.layerGroup().addTo(map);
 const bldLayer=L.layerGroup().addTo(map);
 const bestLayer=L.layerGroup().addTo(map);
 function cellPopup(r){
-  let h='<b>Cellule 3 m</b>'+(r[2]?' (dans un bâtiment)':'')+'<br><table style="font-size:11px">';
+  let h='<b>Cellule 3 m</b>'+(r[2]?' (dans un bâtiment)':'')+'<br>';
+  if(curSc==='AUTO'){const w=getWin(r);if(w)h+='<span style="font-size:11px">Bande choisie : <b>'+w.sc+'</b> ('+w.v+' dBm)</span><br>';}
+  h+='<table style="font-size:11px">';
   P.sc.forEach((sc,si)=>{const v=r[3+curOp*NS+si];h+='<tr><td>'+sc+'</td><td style="text-align:right">'+(v<=-900?'—':v+' dBm')+'</td></tr>';});
   h+='</table><div style="font-size:10px;color:#777">Rayon 800 : '+r[3+OPS.length*NS]+' bât. traversé(s), '+r[4+OPS.length*NS]+' m de végétation</div>';
   return h;
 }
 function draw(){
   cells.clearLayers();
-  const hl=P.hlat,hn=P.hlon,off=3+curOp*NS+SCI[curSc];
+  const hl=P.hlat,hn=P.hlon;
   const dim=(mode==='in');
+  const auto=(curSc==='AUTO');
   P.rows.forEach(r=>{
-    const v=r[off];
+    let fc,fo;
+    if(auto){
+      const w=getWin(r);
+      if(!w||w.v<=-113){fc='#b6b6b6';fo=dim?0.08:0.25;}
+      else{fc=BANDCOL[BANDF[w.sc]];fo=(w.v>=-85?0.62:w.v>=-95?0.5:w.v>=-105?0.4:0.3)*(dim?0.25:1);}
+    } else {
+      const v=r[3+curOp*NS+SCI[curSc]];
+      fc=color(v<=-900?-999:v);fo=dim?0.12:0.55;
+    }
     L.rectangle([[r[0]-hl,r[1]-hn],[r[0]+hl,r[1]+hn]],
-      {stroke:false,fillColor:color(v<=-900?-999:v),fillOpacity:dim?0.12:0.55})
+      {stroke:false,fillColor:fc,fillOpacity:fo})
       .bindPopup(cellPopup(r)).addTo(cells);
   });
   drawBld();
-  const f=FRQ[curSc];
-  document.getElementById('note').textContent = mode==='in'
-    ? 'Intérieur : signal extérieur local − perte d’entrée dans le bâti ('+P.ind[f]+' dB à '+f+' MHz, ITU-R P.2109).'
-    : 'Extérieur à 1,5 m du sol. Ombres maison/haies incluses. Clique une cellule pour le détail par bande.';
+  const al=document.getElementById('autoLeg');
+  if(auto){
+    al.style.display='block';
+    al.innerHTML='<div class="lbl">Bande choisie par le tél</div>'+Object.entries(BANDCOL).map(([f2,c])=>'<span style="display:inline-flex;align-items:center;gap:4px;margin:0 8px 4px 0;font-size:11px;color:#555"><span class="sw" style="background:'+c+'"></span>'+f2+'</span>').join('');
+    document.getElementById('note').textContent='Auto : chaque cellule prend la bande que choisirait le téléphone — la plus haute fréquence si ≥ −105 dBm (débit), sinon repli sur la meilleure bande basse (couverture). Opacité = force du signal.';
+  } else {
+    al.style.display='none';
+    const f=FRQ[curSc];
+    document.getElementById('note').textContent = mode==='in'
+      ? 'Intérieur : signal extérieur local − perte d’entrée dans le bâti ('+P.ind[f]+' dB à '+f+' MHz, ITU-R P.2109).'
+      : 'Extérieur à 1,5 m du sol. Ombres maison/haies incluses. Clique une cellule pour le détail par bande.';
+  }
   updateBest();
 }
 function mkBestIcon(txt,bg,dy){return L.divIcon({className:'',html:'<div style="background:'+bg+';color:#fff;border:2px solid #fff;border-radius:14px;padding:2px 8px;font:600 11px system-ui;white-space:nowrap;box-shadow:0 1px 5px rgba(0,0,0,.45)">'+txt+'</div>',iconAnchor:[28,dy]});}
@@ -107,13 +154,12 @@ function updateBest(){
   const ok5out=mark(bestOf(G5,false),'🚀 5G ext.','#5b2d8f',-8,'hors terrain');
   if(!ok5in&&!ok5out)
     document.getElementById('note').textContent += ' Aucun endroit 5G exploitable pour '+OPS[curOp]+'.';
-  const off=3+curOp*NS+SCI[curSc];
   function top3(inZone,dash){
-    P.rows.map((r,ri)=>({r:r,ri:ri})).filter(o=>ZIN[o.ri]===inZone&&o.r[off]>-900)
-     .sort((a,b)=>b.r[off]-a.r[off]).slice(0,3)
+    P.rows.map((r,ri)=>({r:r,ri:ri})).filter(o=>ZIN[o.ri]===inZone&&valAt(o.r)>-900)
+     .sort((a,b)=>valAt(b.r)-valAt(a.r)).slice(0,3)
      .forEach((o,i)=>L.rectangle([[o.r[0]-P.hlat,o.r[1]-P.hlon],[o.r[0]+P.hlat,o.r[1]+P.hlon]],
        {color:'#ffd700',weight:2.5,fill:false,dashArray:dash})
-       .bindPopup('Top '+(i+1)+' '+(inZone?'terrain':'extérieur')+' — '+curSc+' : '+o.r[off]+' dBm').addTo(bestLayer));
+       .bindPopup('Top '+(i+1)+' '+(inZone?'terrain':'extérieur')+' : '+valAt(o.r)+' dBm').addTo(bestLayer));
   }
   top3(true,null); top3(false,'5 5');
 }
@@ -128,10 +174,11 @@ const bldCache=P.bld.map(b=>{
 });
 function drawBld(){
   bldLayer.clearLayers();
-  const off=3+curOp*NS+SCI[curSc];const f=FRQ[curSc];const ent=P.ind[f];
   bldCache.forEach(bc=>{
     if(!bc.row)bc.row=nearestRow(bc.c[0],bc.c[1]);
-    const v=bc.row?bc.row[off]:-999;
+    let v,ent;
+    if(curSc==='AUTO'){const w=bc.row?getWin(bc.row):null;v=w?w.v:-999;ent=w?P.ind[String(BANDF[w.sc])]:12;}
+    else{v=bc.row?bc.row[3+curOp*NS+SCI[curSc]]:-999;ent=P.ind[FRQ[curSc]];}
     const vin=(v<=-900)?-999:v-ent;
     const popup='<b>Bâtiment</b> h='+bc.b.h+' m<br>Extérieur : '+(v<=-900?'—':v+' dBm')+'<br>Intérieur estimé ('+curSc+') : '+(vin<=-900?'—':vin+' dBm');
     if(mode==='in'){
@@ -152,6 +199,20 @@ function mkchips(div,keys){keys.forEach(k=>{const b=document.createElement('span
  b.onclick=()=>{curSc=k;document.querySelectorAll('#sc4 .chip,#sc5 .chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');draw();};div.appendChild(b);});}
 mkchips(document.getElementById('sc4'),P.sc.filter(s=>s[0]==='4'));
 mkchips(document.getElementById('sc5'),P.sc.filter(s=>s[0]==='5'));
+(function(){
+  const b=document.createElement('span');b.className='chip';b.textContent='🤖 Auto — bande que prendrait le tél';
+  b.onclick=()=>{curSc='AUTO';document.querySelectorAll('#sc4 .chip,#sc5 .chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');draw();};
+  document.getElementById('scauto').appendChild(b);
+  const orig=mkchips;
+  document.querySelectorAll('#sc4 .chip,#sc5 .chip').forEach(c=>{
+    const old=c.onclick;c.onclick=()=>{b.classList.remove('on');old();};});
+})();
+document.getElementById('ctrlHide').onclick=()=>{
+  document.getElementById('ctrl').classList.add('hidden');
+  document.getElementById('ctrlToggle').classList.add('show');};
+document.getElementById('ctrlToggle').onclick=()=>{
+  document.getElementById('ctrl').classList.remove('hidden');
+  document.getElementById('ctrlToggle').classList.remove('show');};
 const modes=[['out','Extérieur'],['in','Intérieur maisons']];
 const mDiv=document.getElementById('modes');
 modes.forEach(([k,l])=>{const b=document.createElement('span');b.className='chip'+(k===mode?' on':'');b.textContent=l;
