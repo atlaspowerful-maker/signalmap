@@ -1,0 +1,31 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SignalMap — cartographie réseau mobile à Thodure</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f7;color:#1a1a1a}
+ .wrap{max-width:680px;margin:0 auto;padding:34px 16px 50px}
+ h1{font-size:24px;margin:0 0 4px}
+ .sub{color:#666;font-size:14px;line-height:1.6;margin:0 0 26px}
+ a.card{display:block;background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.08);
+   padding:16px 18px;margin-bottom:12px;text-decoration:none;color:inherit;transition:transform .1s}
+ a.card:hover{transform:translateY(-2px);box-shadow:0 3px 12px rgba(0,0,0,.13)}
+ .t{font-size:16px;font-weight:600;margin:0 0 3px}
+ .d{font-size:13px;color:#777;line-height:1.5}
+ .foot{font-size:11.5px;color:#999;margin-top:26px;line-height:1.6}
+</style></head><body><div class="wrap">
+<h1>📡 SignalMap</h1>
+<p class="sub">Cartographie fine du réseau mobile autour du 495 chemin de l'Étang, Thodure (38).
+Données réelles ANFR/Cartoradio + IGN (relief, bâtiments avec hauteurs, végétation), modèle de propagation
+FSPL + diffraction de Deygout + clutter.</p>
+<a class="card" href="jardin.html"><p class="t">🌳 Micro-simulation du jardin</p>
+<p class="d">Cellules de 3 m, ombres de la maison et des haies, meilleurs spots 4G/5G par opérateur, vue intérieur des maisons.</p></a>
+<a class="card" href="hameau.html"><p class="t">🏘️ Simulation 4G &amp; 5G du hameau</p>
+<p class="d">Tout le hameau, bande par bande (700 → 3500 MHz), bâtiments réels, filtre par opérateur.</p></a>
+<a class="card" href="bandes.html"><p class="t">📱 Mes bandes — téléphone × forfait</p>
+<p class="d">Choisis ton téléphone et ton forfait : quelles bandes tu peux réellement capter ici.</p></a>
+<a class="card" href="tracage.html"><p class="t">🗺️ Antennes &amp; traçage de zone</p>
+<p class="d">Les 22 antennes du secteur (tous opérateurs), rayons de distance, outil de traçage de zone.</p></a>
+<p class="foot">Modèle : espace libre + diffraction multi-arêtes ITU-R P.526 (Deygout) sur relief IGN RGE ALTI,
+ombres bâtiments (BD TOPO, hauteurs réelles), végétation Weissberger, entrée bâti ITU-R P.2109.
+Bandes = scénarios (l'ANFR ne publie pas les bandes par site) · incertitude ±8 dB · vérité terrain : field test *3001#12345#*.</p>
+</div></body></html>

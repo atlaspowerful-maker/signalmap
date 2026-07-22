@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Mes bandes — téléphone × forfait × réseau chez mamie</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f7;color:#1a1a1a}
+ .wrap{max-width:860px;margin:0 auto;padding:18px 14px 40px}
+ h1{font-size:21px;margin:10px 0 4px}
+ .sub{color:#666;font-size:13px;margin:0 0 16px;line-height:1.5}
+ .card{background:#fff;border-radius:14px;box-shadow:0 1px 6px rgba(0,0,0,.08);padding:16px;margin-bottom:14px}
+ .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#888;margin:0 0 6px}
+ select{font-size:15px;padding:8px 10px;border-radius:9px;border:1px solid #ccc;background:#fff;width:100%}
+ .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+ @media(max-width:640px){.grid3{grid-template-columns:1fr}}
+ table{width:100%;border-collapse:collapse;font-size:13.5px}
+ th{text-align:left;color:#888;font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:8px 6px;border-bottom:2px solid #eee}
+ td{padding:8px 6px;border-bottom:1px solid #f0f0f0}
+ .ok{color:#0f7a4d;font-weight:600}.no{color:#c22;font-weight:600}.warn{color:#a06a00;font-weight:600}
+ .pill{display:inline-block;border-radius:12px;padding:2px 9px;font-size:12px;font-weight:600}
+ .p-exc{background:#d9f2e5;color:#0a5c39}.p-bon{background:#e4f3d3;color:#3c6813}
+ .p-moy{background:#fdeeca;color:#7a5200}.p-fai{background:#fde3d2;color:#94420e}
+ .p-nul{background:#eee;color:#777}
+ #verdict{font-size:15px;line-height:1.6}
+ #verdict b{font-size:16px}
+ .note{font-size:12px;color:#888;line-height:1.5;margin-top:10px}
+ code{background:#f0f0f4;padding:1px 5px;border-radius:5px;font-size:12.5px}
+ .band{font-weight:600}
+</style></head><body>
+<div class="wrap">
+ <h1>Quelles bandes pour MON téléphone, MON forfait, chez mamie ?</h1>
+ <p class="sub">Croisement : bandes supportées par le téléphone ∩ bandes déployées par l'opérateur en France ∩ droits du forfait ∩ <b>signal réellement simulé dans le jardin à Thodure</b> (micro-simulation terrain).</p>
+
+ <div class="card"><div class="grid3">
+  <div><p class="lbl">Téléphone</p><select id="phone"></select></div>
+  <div><p class="lbl">Opérateur</p><select id="op"></select></div>
+  <div><p class="lbl">Forfait</p><select id="plan">
+    <option value="5g" selected>Forfait 5G</option>
+    <option value="4g">Forfait 4G (sans 5G)</option>
+  </select></div>
+ </div></div>
+
+ <div class="card" id="verdictCard"><p class="lbl">Verdict chez ta grand-mère</p><div id="verdict"></div></div>
+
+ <div class="card">
+  <p class="lbl">Détail bande par bande</p>
+  <div style="overflow-x:auto"><table id="tbl">
+   <thead><tr><th>Bande</th><th>Fréq.</th><th>Techno</th><th>Ton tél.</th><th>Réseau op. (France)</th><th>Forfait</th><th>Utilisable</th><th>Chez mamie (simulé)</th></tr></thead>
+   <tbody></tbody>
+  </table></div>
+  <p class="note" id="sunset"></p>
+ </div>
+
+ <div class="card">
+  <p class="lbl">Vérifier en vrai sur ton iPhone</p>
+  <p style="font-size:13.5px;line-height:1.65;margin:4px 0">
+   Compose <code>*3001#12345#*</code> puis appuie sur appeler → l'écran <i>Field Test</i> s'ouvre.<br>
+   Menu <code>LTE</code> → <code>Serving Cell Info</code> → ligne <code>freq_band_ind</code> = ta bande 4G du moment
+   (28 = 700&nbsp;MHz, 20 = 800, 3 = 1800, 1 = 2100, 7 = 2600, 8 = 900).<br>
+   Si tu es en 5G : menu <code>NR</code> → la bande apparaît (n78 = 3500, n28 = 700, n1 = 2100).<br>
+   <code>rsrp</code> = la puissance mesurée, à comparer aux valeurs simulées de la colonne « Chez mamie ».
+  </p>
+ </div>
+</div>
+
+<script>
+// ===== Données =====
+// Bandes supportées par téléphone (modèles EU). Sous-ensemble pertinent France.
+const PHONES = {
+ "iPhone 12 Pro":      {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "iPhone 12 / 12 mini":{g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "iPhone 13 / 14":     {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "iPhone 15 / 16":     {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "iPhone 11 (pas de 5G)":   {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:[]},
+ "iPhone SE 2020 (pas de 5G)":{g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:[]},
+ "Samsung Galaxy S21+ 5G":  {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "Samsung Galaxy A54 5G":   {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "Google Pixel 7":          {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "Autre smartphone 5G récent":{g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:["n1","n3","n7","n28","n78"]},
+ "Autre smartphone 4G":     {g2:true,g3:true, g4:["B1","B3","B7","B8","B20","B28"], g5:[]}
+};
+// Déploiements France métropole (2026). deployed: la bande est émise par l'opérateur.
+const BANDS = [
+ {id:"B28", f:"700",  tech:"4G", scen:"4G700"},
+ {id:"B20", f:"800",  tech:"4G", scen:"4G800"},
+ {id:"B8",  f:"900",  tech:"4G", scen:"4G800", approx:true},
+ {id:"B3",  f:"1800", tech:"4G", scen:"4G1800"},
+ {id:"B1",  f:"2100", tech:"4G", scen:"4G2100"},
+ {id:"B7",  f:"2600", tech:"4G", scen:"4G2600"},
+ {id:"n28", f:"700",  tech:"5G", scen:"5G700"},
+ {id:"n1",  f:"2100", tech:"5G", scen:"5G2100"},
+ {id:"n78", f:"3500", tech:"5G", scen:"5G3500"},
+ {id:"2G",  f:"900/1800", tech:"2G", scen:null},
+ {id:"3G",  f:"900/2100", tech:"3G", scen:null}
+];
+const OPS = {
+ "SFR":     {b:{B28:1,B20:1,B8:0,B3:1,B1:1,B7:1,n28:0,n1:1,n78:1,"2G":1,"3G":1},
+             note:"5G SFR = n78 (3500) + n1 (2100 DSS, désormais sa couche la plus étendue en sites). Zéro 5G en 700 (ANFR). Le 900 SFR porte le 2G/3G, pas la 4G. 2G jusqu'à fin 2026, 3G jusqu'à 2028."},
+ "Orange":  {b:{B28:1,B20:1,B8:0,B3:1,B1:1,B7:1,n28:1,n1:1,n78:1,"2G":1,"3G":1},
+             note:"5G Orange = n78 + n28 (700, couche majeure depuis 2025 : ~15 000 sites) + n1. 2G en extinction progressive (arrêt total sept-oct 2026), 3G jusqu'à 2028."},
+ "Bouygues":{b:{B28:1,B20:1,B8:0,B3:1,B1:1,B7:1,n28:0,n1:1,n78:1,"2G":1,"3G":1},
+             note:"5G Bouygues = n1 (2100, sa plus grande couche) + n78. Zéro 5G en 700 (ANFR). 2G à partir de nov-déc 2026, 3G fin 2029."},
+ "Free":    {b:{B28:1,B20:0,B8:1,B3:1,B1:1,B7:1,n28:1,n1:0,n78:1,"2G":0,"3G":0},
+             note:"Free n'a jamais eu de 800 (B20). Sa 5G de couverture = n28 (700, ~25 700 sites). Sa 3G propre a été arrêtée fin 2025 (900 refarmé en 4G B8)."}
+};
+// RSRP moyen simulé dans le jardin (micro-simulation, dBm) par opérateur et scénario
+const GARDEN = {"Orange": {"4G700": -80, "4G800": -80, "4G1800": -85, "4G2100": -94, "4G2600": -107, "5G700": -89, "5G2100": -105, "5G3500": null}, "SFR": {"4G700": -83, "4G800": -82, "4G1800": -88, "4G2100": -104, "4G2600": -133, "5G700": -101, "5G2100": -131, "5G3500": null}, "Bouygues": {"4G700": -83, "4G800": -82, "4G1800": -88, "4G2100": -104, "4G2600": -133, "5G700": -101, "5G2100": -131, "5G3500": null}, "Free": {"4G700": -80, "4G800": -80, "4G1800": -85, "4G2100": -94, "4G2600": -107, "5G700": -89, "5G2100": -105, "5G3500": null}};
+// ===== UI =====
+const selP=document.getElementById('phone'), selO=document.getElementById('op'), selF=document.getElementById('plan');
+Object.keys(PHONES).forEach(k=>{const o=document.createElement('option');o.textContent=k;selP.appendChild(o);});
+Object.keys(OPS).forEach(k=>{const o=document.createElement('option');o.textContent=k;selO.appendChild(o);});
+selP.value="iPhone 12 Pro"; selO.value="SFR";
+function pillFor(v){
+ if(v===null||v===undefined||v<=-120) return '<span class="pill p-nul">rien</span>';
+ if(v>=-85) return '<span class="pill p-exc">'+v+' dBm · excellent</span>';
+ if(v>=-95) return '<span class="pill p-bon">'+v+' dBm · bon</span>';
+ if(v>=-105) return '<span class="pill p-moy">'+v+' dBm · moyen</span>';
+ if(v>=-113) return '<span class="pill p-fai">'+v+' dBm · faible</span>';
+ return '<span class="pill p-nul">'+v+' dBm · nul</span>';
+}
+function render(){
+ const ph=PHONES[selP.value], op=OPS[selO.value], g=GARDEN[selO.value], plan5=selF.value==='5g';
+ const tb=document.querySelector('#tbl tbody'); tb.innerHTML='';
+ const usable=[];
+ BANDS.forEach(b=>{
+  let phOK;
+  if(b.tech==='4G') phOK=ph.g4.includes(b.id);
+  else if(b.tech==='5G') phOK=ph.g5.includes(b.id);
+  else if(b.tech==='2G') phOK=ph.g2; else phOK=ph.g3;
+  const opOK=!!op.b[b.id];
+  const planOK=(b.tech==='5G')?plan5:true;
+  const use=phOK&&opOK&&planOK;
+  let mam='<span class="pill p-nul">—</span>';
+  if(use&&b.scen){ let v=g[b.scen]; if(b.approx&&v!==null)v=v-1; mam=pillFor(v);
+    if(v!==null&&v>-113) usable.push({b:b,v:v}); }
+  else if(use&&!b.scen){ mam='<span class="pill p-moy">≈ 4G 800</span>'; }
+  tb.innerHTML+='<tr><td class="band">'+b.id+'</td><td>'+b.f+' MHz</td><td>'+b.tech+'</td>'
+   +'<td class="'+(phOK?'ok':'no')+'">'+(phOK?'✓':'✗')+'</td>'
+   +'<td class="'+(opOK?'ok':'no')+'">'+(opOK?'✓':'✗ non déployée')+'</td>'
+   +'<td class="'+(planOK?'ok':'no')+'">'+(planOK?'✓':'✗ forfait')+'</td>'
+   +'<td class="'+(use?'ok':'no')+'">'+(use?'OUI':'non')+'</td>'
+   +'<td>'+mam+'</td></tr>';
+ });
+ document.getElementById('sunset').textContent='Note opérateur : '+op.note+' Valeurs « chez mamie » = moyenne extérieure de la micro-simulation du jardin (±8 dB) ; à l\'intérieur retire 12-20 dB selon la bande.';
+ // verdict
+ usable.sort((a,b2)=>b2.v-a.v);
+ const g5u=usable.filter(u=>u.b.tech==='5G'&&u.v>-110);
+ const g4u=usable.filter(u=>u.b.tech==='4G'&&u.v>-110);
+ let v='';
+ if(g4u.length) v+='📶 <b>4G : oui</b> — ton téléphone accrochera '+g4u.map(u=>'<b>'+u.b.id+'</b> ('+u.b.f+' MHz, '+u.v+' dBm)').join(', ')+'.<br>';
+ else v+='📵 <b>4G : rien d\'utilisable.</b><br>';
+ if(!PHONES[selP.value].g5.length) v+='🚫 <b>5G : ton téléphone n\'a pas de 5G.</b>';
+ else if(!(selF.value==='5g')) v+='🔒 <b>5G : bloquée par ton forfait 4G.</b>';
+ else if(g5u.length) v+='🚀 <b>5G : oui</b> — via '+g5u.map(u=>'<b>'+u.b.id+'</b> ('+u.v+' dBm)').join(', ')+'.';
+ else v+='⚠️ <b>5G : non captable ici</b> — ton téléphone et ton forfait sont OK, mais aucune bande 5G de cet opérateur n\'arrive jusqu\'au jardin (n78 trop courte portée, n1 morte ici'+(OPS[selO.value].b.n28?'':', pas de n28 chez cet opérateur')+').';
+ document.getElementById('verdict').innerHTML=v;
+}
+[selP,selO,selF].forEach(s=>s.onchange=render);
+render();
+</script></body></html>
