@@ -103,7 +103,7 @@ const OPS = {
              note:"Free n'a jamais eu de 800 (B20). Sa 5G de couverture = n28 (700, ~25 700 sites). Sa 3G propre a été arrêtée fin 2025 (900 refarmé en 4G B8)."}
 };
 // RSRP moyen simulé dans le jardin (micro-simulation, dBm) par opérateur et scénario
-const GARDEN = {"Orange": {"4G700": -80, "4G800": -80, "4G1800": -85, "4G2100": -94, "4G2600": -107, "5G700": -89, "5G2100": -105, "5G3500": null}, "SFR": {"4G700": -83, "4G800": -82, "4G1800": -88, "4G2100": -104, "4G2600": -133, "5G700": -101, "5G2100": -131, "5G3500": null}, "Bouygues": {"4G700": -83, "4G800": -82, "4G1800": -88, "4G2100": -104, "4G2600": -133, "5G700": -101, "5G2100": -131, "5G3500": null}, "Free": {"4G700": -80, "4G800": -80, "4G1800": -85, "4G2100": -94, "4G2600": -107, "5G700": -89, "5G2100": -105, "5G3500": null}};
+const GARDEN = {"Orange": {"4G700": -81, "4G800": -81, "4G1800": -86, "4G2100": -95, "4G2600": -109, "5G700": -91, "5G2100": -107, "5G3500": null}, "SFR": {"4G700": -85, "4G800": -84, "4G1800": -89, "4G2100": -105, "4G2600": -134, "5G700": -102, "5G2100": -132, "5G3500": null}, "Bouygues": {"4G700": -85, "4G800": -84, "4G1800": -89, "4G2100": -105, "4G2600": -134, "5G700": -102, "5G2100": -132, "5G3500": null}, "Free": {"4G700": -81, "4G800": -81, "4G1800": -86, "4G2100": -95, "4G2600": -109, "5G700": -91, "5G2100": -107, "5G3500": null}};
 // ===== UI =====
 const selP=document.getElementById('phone'), selO=document.getElementById('op'), selF=document.getElementById('plan');
 Object.keys(PHONES).forEach(k=>{const o=document.createElement('option');o.textContent=k;selP.appendChild(o);});

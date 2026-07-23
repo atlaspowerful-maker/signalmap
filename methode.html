@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Méthode de propagation — SignalMap Thodure</title>
+<style>
+ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f4f4f7;color:#1a1a1a;line-height:1.65}
+ .wrap{max-width:760px;margin:0 auto;padding:30px 18px 60px}
+ h1{font-size:25px;margin:8px 0 4px}
+ h2{font-size:19px;margin:34px 0 8px;padding-bottom:5px;border-bottom:2px solid #e2e2ea}
+ h3{font-size:15.5px;margin:20px 0 6px}
+ p,li{font-size:14.5px}
+ .sub{color:#666;font-size:14px;margin:0 0 8px}
+ .card{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.07);padding:14px 18px;margin:12px 0}
+ .formula{background:#f7f7fb;border-left:3px solid #2d2a70;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13.5px;overflow-x:auto;white-space:pre}
+ table{width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0}
+ th{text-align:left;color:#888;font-weight:500;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;padding:7px 8px;border-bottom:2px solid #eee}
+ td{padding:6px 8px;border-bottom:1px solid #f0f0f0;vertical-align:top}
+ code{background:#eeeef4;padding:1px 5px;border-radius:5px;font-size:12.5px}
+ .warn{background:#fdf6e3;border-left:3px solid #BA7517;border-radius:0 8px 8px 0;padding:10px 14px;margin:10px 0;font-size:13.5px}
+ .src{font-size:12.5px;color:#777}
+ a{color:#2d2a70}
+ .toc{background:#fff;border-radius:12px;box-shadow:0 1px 5px rgba(0,0,0,.07);padding:12px 18px;font-size:13.5px}
+ .toc a{display:block;padding:2.5px 0;text-decoration:none}
+ sup{font-size:10px}
+</style></head><body><div class="wrap">
+
+<p><a href="index.html">← SignalMap</a></p>
+<h1>📡 Méthode de propagation des ondes</h1>
+<p class="sub">Documentation technique du modèle utilisé pour les cartes SignalMap (Thodure, Isère).
+Architecture, formules, paramètres, sources et limites — version du 23 juillet 2026.</p>
+
+<div class="toc">
+<b>Sommaire</b>
+<a href="#archi">1. Architecture du modèle</a>
+<a href="#data">2. Données d'entrée (toutes réelles)</a>
+<a href="#chaine">3. La chaîne de calcul, terme par terme</a>
+<a href="#seuils">4. Seuils de qualité RSRP</a>
+<a href="#auto">5. Mode « Auto » — sélection de bande</a>
+<a href="#valid">6. Validations effectuées</a>
+<a href="#limites">7. Limites et incertitudes (à lire avant de débattre)</a>
+<a href="#sources">8. Sources et références</a>
+</div>
+
+<h2 id="archi">1. Architecture du modèle</h2>
+<p>Il existe deux familles de modèles de couverture radio :</p>
+<ul>
+<li><b>Statistiques / empiriques</b> (Okumura-Hata, COST-231, 3GPP TR 38.901 RMa) : des formules calées sur
+des campagnes de mesures, qui intègrent <i>en moyenne</i> l'effet du terrain et du bâti. Rapides, mais aveugles
+à la colline ou à la grange particulière qui masque <i>votre</i> maison.</li>
+<li><b>Déterministes / physiques</b> : espace libre + calcul explicite de chaque obstacle réel
+(diffraction, ombres, végétation) à partir de données géographiques.</li>
+</ul>
+<div class="card">
+<b>Choix retenu : architecture déterministe.</b> Puisque nous disposons du relief réel (IGN), des bâtiments
+réels avec leurs hauteurs (BD TOPO) et de la végétation réelle, le modèle calcule pour chaque cellule de la
+grille et chaque antenne :
+<div class="formula">RSRP = EIRP − offset_RE − FSPL(f, d) − L_terrain − L_bâtiments − L_végétation [− L_entrée si intérieur]</div>
+Le meilleur serveur (antenne donnant le RSRP max) est retenu par cellule, par opérateur et par bande.
+</div>
+<div class="warn"><b>⚠ Piège du double comptage</b> — on n'additionne <i>jamais</i> un modèle statistique NLOS
+(qui contient déjà une perte de terrain moyenne) avec une diffraction explicite calculée sur le vrai profil :
+on choisit l'un <b>ou</b> l'autre. Ici : FSPL (base « propre ») + pertes explicites. Le modèle statistique
+3GPP RMa n'est utilisé qu'en <i>garde-fou</i> de cohérence (§6).</div>
+
+<h2 id="data">2. Données d'entrée (toutes réelles)</h2>
+<table>
+<tr><th>Donnée</th><th>Source</th><th>Détail</th></tr>
+<tr><td>Antennes : position, hauteur du support, technos (2G/3G/4G/5G) par opérateur</td>
+<td>ANFR — API Cartoradio<br><span class="src">cartoradio.fr/api/v1/sites</span></td>
+<td>22 sites dans un rayon de ~10 km. <b>Non publié</b> : bandes de fréquence par site, azimuts des secteurs, puissances.</td></tr>
+<tr><td>Relief : altitude de chaque point + profils terrain maison→antenne</td>
+<td>IGN Géoplateforme, MNT RGE ALTI<br><span class="src">data.geopf.fr/altimetrie (elevation, elevationLine)</span></td>
+<td>50 échantillons par profil (~100–200 m d'espacement selon la distance).</td></tr>
+<tr><td>Bâtiments : emprise + <b>hauteur mesurée</b></td>
+<td>IGN BD TOPO, couche <code>batiment</code> (WFS)</td>
+<td>165 bâtiments dans la zone, hauteurs 1,6–9,8 m.</td></tr>
+<tr><td>Végétation : bois, forêts, haies, vergers</td>
+<td>IGN BD TOPO, couche <code>zone_de_vegetation</code></td>
+<td>73 polygones (38 haies, 34 bois/forêts). Hauteurs forfaitaires : haie 4 m, bois 15 m, forêt 18 m.</td></tr>
+<tr><td>Bandes déployées par opérateur (scénarios)</td>
+<td>Observatoire ANFR (juillet 2026), fact-checké</td>
+<td>Ex. : zéro 5G 700 MHz chez SFR/Bouygues ; n28 = couche de couverture chez Free (~25 700 sites) et Orange (~15 200).</td></tr>
+</table>
+
+<h2 id="chaine">3. La chaîne de calcul, terme par terme</h2>
+
+<h3>3.1 Perte en espace libre (FSPL)</h3>
+<div class="formula">FSPL(dB) = 32,45 + 20·log₁₀(f_MHz) + 20·log₁₀(d_km)</div>
+<p>Forme logarithmique de l'équation de Friis pour antennes isotropes.
+<span class="src">Réf. : ITU-R P.525-4, « Calculation of free-space attenuation ».</span></p>
+
+<h3>3.2 Diffraction de terrain — ITU-R P.526, construction de Deygout</h3>
+<p>Chaque profil maison→antenne est balayé pour trouver les arêtes (crêtes) qui obstruent le trajet.
+Pour un obstacle en arête de couteau, le paramètre de Fresnel-Kirchhoff :</p>
+<div class="formula">v = h · √( (2/λ) · (1/d₁ + 1/d₂) )</div>
+<p>où <code>h</code> = hauteur de l'obstacle <b>au-dessus de la ligne directe</b> émetteur-récepteur (négatif si
+dégagé), <code>d₁, d₂</code> = distances obstacle↔extrémités, <code>λ</code> = longueur d'onde. La perte :</p>
+<div class="formula">J(v) = 6,9 + 20·log₁₀( √((v−0,1)² + 1) + v − 0,1 )   [dB],  pour v > −0,78
+J(v) = 0 sinon</div>
+<p><span class="src">Réf. : ITU-R P.526-15, §4.1 (approximation de l'intégrale de Fresnel). À v=0 (rasant), J ≈ 6 dB.</span></p>
+<p><b>Multi-obstacles — Deygout (3 arêtes)</b> : on cherche l'arête dominante (v max) sur tout le profil,
+on ajoute J(v) ; puis on recourt récursivement sur les deux sous-trajets (avant/après l'arête), profondeur 3.
+Deygout est légèrement pessimiste, Bullington légèrement optimiste ; la réalité est entre les deux.
+<span class="src">Réf. : Deygout, <i>Multiple knife-edge diffraction of microwaves</i>, IEEE Trans. AP-14, 1966 (méthode récursive multi-arêtes). Dans P.526, le cas « arête principale » à deux arêtes est le §4.3 ; le §4.5 décrit une méthode différente (delta-Bullington) — la récursion à 3 arêtes utilisée ici est celle de Deygout, non normalisée telle quelle dans P.526.</span></p>
+<p><b>Courbure terrestre</b> : la hauteur des obstacles est <b>augmentée</b> du bombement
+<code>d₁·d₂ / (2·k·R)</code> avec un rayon terrestre effectif k = 4/3 (réfraction atmosphérique standard).
+<span class="src">Réf. : ITU-R P.834.</span></p>
+<p><b>Optimisation exploitée</b> : v ∝ 1/√λ uniformément sur un trajet donné → le <i>choix</i> des arêtes de
+Deygout est indépendant de la fréquence. On calcule donc une seule fois par trajet les constantes
+<code>Kᵢ = hᵢ·√(2(1/d₁+1/d₂))</code>, et <code>v(f) = K/√λ</code> se réévalue pour chacune des 8 bandes quasi gratuitement. Les arêtes très dégagées (K ≤ −0,5, soit v ≤ −0,76 à 700 MHz) sont écartées du cache — erreur négligée &lt; 0,15 dB dans le pire cas.</p>
+
+<h3>3.3 Ombres des bâtiments (clutter proche)</h3>
+<p>Dans une <b>fenêtre de 400 m côté récepteur</b> (là où le rayon est encore bas), chaque bâtiment traversé
+par le rayon 2D est traité comme une arête de couteau de hauteur = sa hauteur BD TOPO au-dessus du sol local :</p>
+<div class="formula">h_rel = (z_sol + h_bât) − y_rayon(x)      avec y_rayon interpolé entre le récepteur (1,5 m) et le sommet de l'antenne
+v = h_rel · √( (2/λ)·(1/x + 1/(D−x)) )  →  J(v)</div>
+<p>Garde-fous : <b>25 dB max par bâtiment</b>, <b>30 dB max au total</b> — car en réalité les multitrajets
+(réflexions, contournements) « remplissent » les ombres profondes. Le bâtiment qui contient le récepteur
+ne se masque pas lui-même. Ordre de grandeur produit : une maison de 5 m à 50 m donne ~15–18 dB à 800 MHz —
+cohérent avec la littérature sur le shadowing résidentiel. <span class="src">Approximation : le « sol local » de chaque obstacle est pris égal à l'altitude de la cellule réceptrice (terrain quasi plat à l'échelle des 400 m) ; le test de canopée (§3.4) est évalué au milieu du segment de traversée.</span></p>
+
+<h3>3.4 Végétation — modèle de Weissberger</h3>
+<p>Dans la même fenêtre de 400 m côté récepteur que pour les bâtiments, on mesure la longueur du rayon qui traverse chaque polygone de végétation (si le rayon passe <i>sous</i> la
+hauteur de canopée au point de traversée), et on applique le « Modified Exponential Decay » :</p>
+<div class="formula">L_veg = 0,45 · f_GHz^0,284 · d          pour 0 ≤ d ≤ 14 m
+L_veg = 1,33 · f_GHz^0,284 · d^0,588    pour 14 < d ≤ 400 m</div>
+<p>plafonné à 30 dB (au-delà, la propagation latérale au-dessus de la canopée domine).
+Longueur totale de végétation plafonnée à 300 m.
+<span class="src">Réf. : M.A. Weissberger, « An initial critical summary of models for predicting the attenuation
+of radio waves by trees », ESD-TR-81-101, 1982. Alternative normative : ITU-R P.833-10.</span></p>
+
+<h3>3.5 Bilan de liaison → RSRP</h3>
+<p>Le RSRP (LTE/NR) est défini <b>par élément de ressource</b> — une sous-porteuse de 15 kHz en LTE, de 30 kHz en NR avec SCS 30 kHz (cas du n78) — alors que
+l'EIRP est étalé sur toute la largeur du canal. Conversion :</p>
+<div class="formula">RSRP = P_reçu_large_bande − 10·log₁₀(12 · N_RB)</div>
+<table>
+<tr><th>Bande (scénario)</th><th>EIRP total (dBm)</th><th>N_RB</th><th>Offset RE (dB)</th><th>Portée max pratique</th></tr>
+<tr><td>4G/5G 700 (B28/n28)</td><td>60</td><td>50 (10 MHz)</td><td>27,8</td><td>16 km</td></tr>
+<tr><td>4G 800 (B20)</td><td>61</td><td>50</td><td>27,8</td><td>16 km</td></tr>
+<tr><td>4G 1800 (B3)</td><td>63</td><td>75 (15 MHz)</td><td>29,5</td><td>10 km</td></tr>
+<tr><td>4G/5G 2100 (B1/n1)</td><td>62–63</td><td>75</td><td>29,5</td><td>6–7 km</td></tr>
+<tr><td>4G 2600 (B7)</td><td>64</td><td>100 (20 MHz)</td><td>30,8</td><td>5 km</td></tr>
+<tr><td>5G 3500 (n78)</td><td>66</td><td>273 (100 MHz, SCS 30 kHz)</td><td>35,2</td><td>2,5 km</td></tr>
+</table>
+<p>Les EIRP sont des valeurs types de macro-cellule rurale européenne (Tx 40–60 W + gain d'antenne 15–18 dBi,
+24 dBi massive-MIMO en 3,5 GHz, moins les pertes) — <b>c'est le paramètre le plus incertain du modèle</b>
+(les valeurs réelles par site ne sont pas publiques) et le principal bouton de calibration.
+Note : pour les scénarios NR en 700/2100, les N_RB LTE (50/75) sont utilisés au lieu des valeurs NR exactes (52/79 PRB) — écart &lt; 0,3 dB. Les portées max pratiques encodent le fait qu'un site lointain n'est pas conçu pour servir si loin sur les
+bandes hautes (budget uplink du téléphone, tilt des antennes).</p>
+
+<h3>3.6 Intérieur des bâtiments — ITU-R P.2109</h3>
+<p>Pour la vue « intérieur », on soustrait la perte d'entrée médiane d'un bâtiment
+<i>traditionnel</i> (non isolé thermiquement par métallisation) :</p>
+<table>
+<tr><th>Fréquence</th><td>700–800 MHz</td><td>1800</td><td>2100</td><td>2600</td><td>3500</td></tr>
+<tr><th>Perte (dB)</th><td>14</td><td>15</td><td>15</td><td>15</td><td>16</td></tr>
+</table>
+<p><span class="src">Réf. : ITU-R P.2109-2 (08/2023), modèle « traditional buildings », médiane à incidence horizontale recalculée via les éq. (1)–(9) — la dépendance fréquentielle de la médiane est quasi plate (~14–16 dB de 0,7 à 3,5 GHz).
+Un bâtiment « thermally-efficient » (vitrage métallisé, isolation RT2012/RE2020) serait nettement plus sévère (médiane ~27–30 dB).</span></p>
+
+<h2 id="seuils">4. Seuils de qualité RSRP</h2>
+<table>
+<tr><th>RSRP</th><th>Qualité</th><th>Expérience</th></tr>
+<tr><td>≥ −85 dBm</td><td>Excellent</td><td>Débit max, indoor confortable</td></tr>
+<tr><td>−85 à −95</td><td>Bon</td><td>Usage fluide</td></tr>
+<tr><td>−95 à −105</td><td>Moyen</td><td>OK dehors, juste à l'intérieur</td></tr>
+<tr><td>−105 à −113</td><td>Faible</td><td>Bord de cellule, débits réduits</td></tr>
+<tr><td>< −113</td><td>Pas de service fiable</td><td>Sensibilité récepteur ~−120/−124 dBm</td></tr>
+</table>
+<p><span class="src">Seuils usuels d'ingénierie radio mobile (conventions opérateurs/outils de drive test) ;
+le RSRQ et le SINR comptent aussi, le RSRP est la métrique de <i>couverture</i>.</span></p>
+
+<h2 id="auto">5. Mode « Auto » — quelle bande prend le téléphone</h2>
+<p>Un téléphone en veille campe selon les priorités d'inter-fréquence diffusées par le réseau (SIB), qui
+favorisent en général les bandes hautes (capacité) tant que le signal y est suffisant. Le mode Auto le
+modélise simplement :</p>
+<div class="formula">bande_choisie = première bande disponible dans l'ordre de préférence
+  5G 3500 → 4G 2600 → 5G 2100 → 4G 2100 → 4G 1800 → 5G 700 → 4G 800 → 4G 700
+  dont RSRP > −105 dBm (seuil strict) ; sinon : bande au RSRP maximal (repli couverture)</div>
+<p>L'ordre suit la fréquence décroissante, à ceci près que la NR (5G) est préférée au LTE à fréquence égale. C'est une simplification honnête : les vrais seuils (threshServingLow, threshX-High…) sont propres à
+chaque opérateur et non publics, et l'agrégation de porteuses fait qu'en données le téléphone combine
+plusieurs bandes à la fois.</p>
+
+<h2 id="valid">6. Validations effectuées</h2>
+<ul>
+<li><b>Monotonie fréquentielle</b> : sur les 2 500 cellules du hameau, zéro cas où le 3500 MHz sort plus fort
+que le 800 MHz (à géométrie égale, la physique l'exige : FSPL et diffraction croissent avec f).</li>
+<li><b>Directionnalité des ombres</b> : les cellules en déficit ont été tracées géométriquement jusqu'aux
+bâtiments qui les causent — l'ombre s'étend bien dans l'axe antenne→cellule (ex. : bâtiments voisins à 47 m
+au NO, pile dans l'azimut 313° de l'antenne de Beaufort).</li>
+<li><b>Amplitudes</b> : ~18 dB d'écart moyen entre cellules ombrées et dégagées ; 35 dB de dynamique dans le
+jardin — ordres de grandeur conformes à la littérature shadowing (σ 6–10 dB en statistique, plus en micro-échelle).</li>
+<li><b>Garde-fou statistique</b> : les résultats FSPL+Deygout ont été confrontés au modèle 3GPP TR 38.901 RMa
+NLOS (formule complète en annexe du repo) — les deux convergent à ±10 dB près sur les trajets non dégagés,
+le déterministe étant plus favorable sur les trajets à vue (attendu et souhaité).</li>
+<li><b>Relecture adversariale</b> : cette page et le code ont été vérifiés par deux passes indépendantes (formules vs standards ITU/3GPP ; doc vs code exécuté) — qui ont notamment détecté et fait corriger avant publication un bug de signe sur la courbure terrestre et l'offset RE du n78.</li>
+<li><b>Fact-check des déploiements</b> : bandes 5G par opérateur vérifiées contre l'observatoire ANFR
+juillet 2026 (ex. : SFR/Bouygues = zéro site 5G en 700 MHz — l'absence de 5G SFR constatée sur place a
+été le déclencheur de cette correction).</li>
+</ul>
+
+<h2 id="limites">7. Limites et incertitudes — l'honnêteté du modèle</h2>
+<div class="warn">Ces cartes sont des <b>estimations physiques comparatives</b>, pas des mesures.
+Incertitude absolue estimée : <b>±8–10 dB</b>. Les <i>contrastes</i> (où c'est mieux, où c'est masqué)
+sont plus fiables que les valeurs absolues.</div>
+<ol>
+<li><b>EIRP inconnu</b> — non public, par site et par bande. Valeurs types utilisées ; ±5 dB facilement.</li>
+<li><b>Bandes par site non publiées</b> — Cartoradio dit « ce site a de la 4G/5G », pas sur quelle fréquence.
+Les cartes par bande sont donc des <b>scénarios</b> contraints par les déploiements nationaux connus.</li>
+<li><b>Antennes supposées omnidirectionnelles</b> — les azimuts des secteurs ne sont pas publics. Une antenne
+dont aucun secteur ne pointe vers Thodure surestimera le signal (cas plausible du site de Marnans à 7,3 km).</li>
+<li><b>Profils de terrain approximés hors du point d'origine</b> — les 50 échantillons du profil sont tirés
+depuis la maison ; pour les autres cellules de la grille, le profil est réutilisé avec l'altitude locale
+substituée au point de départ. Exact à la maison, approché à ±500 m (le terrain de plaine varie peu ici).</li>
+<li><b>Arête de couteau vs collines arrondies</b> — P.526 knife-edge sous-estime la perte des buttes larges
+et douces (un terme « rounded obstacle » existe dans P.526, non implémenté).</li>
+<li><b>Végétation saisonnière</b> — Weissberger « in-leaf » ; l'hiver, comptez 3–6 dB de mieux à travers
+les feuillus. Les hauteurs de canopée sont forfaitaires.</li>
+<li><b>Pas de fast fading ni de trafic</b> — le RSRP prédit est une moyenne locale ; la charge de la cellule
+affecte le débit, pas le RSRP.</li>
+<li><b>Juge de paix</b> — le field test du téléphone (<code>*3001#12345#*</code> sur iPhone :
+<code>freq_band_ind</code> = bande, <code>rsrp</code> = mesure). Deux ou trois mesures géolocalisées
+suffisent à recaler l'EIRP du modèle.</li>
+</ol>
+
+<h2 id="sources">8. Sources et références</h2>
+<h3>Recommandations et standards</h3>
+<ul>
+<li>ITU-R P.525-4 — <i>Calculation of free-space attenuation</i> (FSPL).</li>
+<li>ITU-R P.526-15 (10/2019, édition utilisée ; la -16 de 11/2025 est parue depuis) — <i>Propagation by diffraction</i> (J(v) §4.1, double arête / arête principale §4.3).</li>
+<li>ITU-R P.2109-2 (08/2023) — <i>Prediction of building entry loss</i> (pertes d'entrée par fréquence).</li>
+<li>ITU-R P.833-10 — <i>Attenuation in vegetation</i> (alternative normative à Weissberger).</li>
+<li>ITU-R P.834 — <i>Effects of tropospheric refraction</i> (rayon terrestre effectif k=4/3).</li>
+<li>3GPP TR 38.901 v17 — <i>Study on channel model for frequencies from 0.5 to 100 GHz</i>, §7.4.1
+(modèle RMa rural macro, utilisé en garde-fou).</li>
+<li>M.A. Weissberger (1982) — <i>An initial critical summary of models for predicting the attenuation of
+radio waves by trees</i>, ESD-TR-81-101.</li>
+<li>J. Deygout (1966) — <i>Multiple knife-edge diffraction of microwaves</i>, IEEE Trans. AP-14.</li>
+<li>Okumura (1968), Hata (1980), COST-231 (1999) — modèles empiriques de référence, contexte historique.</li>
+</ul>
+<h3>Données</h3>
+<ul>
+<li>ANFR — Cartoradio (<a href="https://www.cartoradio.fr">cartoradio.fr</a>) : sites et antennes autorisés.</li>
+<li>ANFR — Observatoire du déploiement 5G, édition juillet 2026 : sites 5G par bande et par opérateur.</li>
+<li>IGN Géoplateforme (<a href="https://data.geopf.fr">data.geopf.fr</a>) : API altimétrie (RGE ALTI),
+WFS BD TOPO (bâtiments, végétation), fonds ortho/plan.</li>
+<li>ARCEP — <a href="https://monreseaumobile.arcep.fr">Mon réseau mobile</a> : couverture théorique
+officielle des opérateurs (simulations à 50 m, publiée en open data).</li>
+<li>Base Adresse Nationale (api-adresse.data.gouv.fr) : géocodage.</li>
+</ul>
+<h3>Implémentation</h3>
+<p>Moteur Python ~150 lignes (géométrie 2D locale, intersections segment-polygone avec préfiltre bbox,
+cache d'arêtes de Deygout indépendant de la fréquence). Grilles : hameau 2 500 cellules à 18 m ;
+jardin 1 314 cellules à 3 m. Code et données dans le
+<a href="https://github.com/atlaspowerful-maker/signalmap">repo signalmap</a>.</p>
+
+<p class="src" style="margin-top:30px">Rédigé le 23 juillet 2026 · modèle et cartes générés avec Claude Code ·
+les corrections/critiques sont bienvenues : c'est le but de cette page.</p>
+</div></body></html>
