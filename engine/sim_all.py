@@ -1,0 +1,59 @@
+import json,math
+S=json.load(open('all_sites_elev.json'));sites=S['sites']
+profiles=json.load(open('profiles.json'))
+G=json.load(open('grid.json'));grid=G['grid'];gel=json.load(open('grid_elev.json'))
+HM=1.5;C=299792458.0;kR=4/3*6371000.0
+def hav(a,b,c,d):
+    R=6371000.0;p1,p2=math.radians(a),math.radians(c);dp=math.radians(c-a);dl=math.radians(d-b)
+    x=math.sin(dp/2)**2+math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2;return 2*R*math.asin(math.sqrt(x))
+def Jv(v):
+    if v<=-0.78:return 0.0
+    return 6.9+20*math.log10(math.sqrt((v-0.1)**2+1)+v-0.1)
+def deygout(z,i0,i1,ha,hb,step,lam,depth):
+    if i1-i0<2 or depth==0:return 0.0
+    bv=-1e9;km=-1
+    for k in range(i0+1,i1):
+        d1=(k-i0)*step;d2=(i1-k)*step;los=ha+(hb-ha)*((k-i0)/(i1-i0))
+        h=z[k]+d1*d2/(2*kR)-los;v=h*math.sqrt(2/lam*(1/d1+1/d2))
+        if v>bv:bv=v;km=k
+    if bv<=-0.78 or km<0:return 0.0
+    return Jv(bv)+deygout(z,i0,km,ha,z[km],step,lam,depth-1)+deygout(z,km,i1,z[km],hb,step,lam,depth-1)
+def fspl(f,dm):return 32.45+20*math.log10(f)+20*math.log10(dm/1000.0)
+# scenario: freq, EIRP, offset, max practical range km, tech
+SC={
+ '4G700':(700,60,27.8,16,'4G'),
+ '4G800':(800,61,27.8,16,'4G'),
+ '4G1800':(1800,63,29.5,10,'4G'),
+ '4G2100':(2100,63,29.5,7,'4G'),
+ '4G2600':(2600,64,30.8,5,'4G'),
+ '5G700':(700,60,27.8,16,'5G'),
+ '5G2100':(2100,62,29.5,6,'5G'),
+ '5G3500':(3500,66,32.8,2.5,'5G'),
+}
+LAM={k:C/(v[0]*1e6) for k,v in SC.items()}
+OPS=['Orange','SFR','Bouygues','Free']
+for s in sites:s['top']=s['elev']+s['h']
+S_=-999;pts=[]
+for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
+    row=[round(la,6),round(lo,6)]
+    for op in OPS:
+        for sc,(f,e,o,rng,tech) in SC.items():
+            lam=LAM[sc];best=-999
+            for s in sites:
+                if op not in s['ops'] or tech not in s['ops'][op] or s['dist']>rng:continue
+                z=profiles[s['id']];z0=z[0];z[0]=pe
+                dm=hav(la,lo,s['lat'],s['lon']);n=len(z);step=dm/(n-1)
+                d=deygout(z,0,n-1,pe+HM,s['top'],step,lam,3);z[0]=z0
+                r=e-o-fspl(f,dm)-d
+                if r>best:best=r
+            row.append(round(best) if best>-900 else S_)
+    pts.append(row)
+    if idx%150==0:print("pt",idx,flush=True)
+json.dump({'ops':OPS,'sc':list(SC.keys()),'pts':pts},open('sim_all_grid.json','w'))
+NS=len(SC)
+def pct(oi,si):
+    n=sum(1 for r in pts if r[2+oi*NS+si]>-113);return round(100*n/len(pts))
+print(f"{'op':9} "+" ".join(f"{s:>7}" for s in SC))
+for oi,op in enumerate(OPS):
+    print(f"{op:9} "+" ".join(f"{pct(oi,si):>6}%" for si in range(NS)))
+print("DONE")

@@ -1,0 +1,75 @@
+{
+ "scenarios": {
+  "4G700": {
+   "f": 700,
+   "eirp": 60,
+   "nrb": 50,
+   "range_km": 16,
+   "tech": "4G"
+  },
+  "4G800": {
+   "f": 800,
+   "eirp": 61,
+   "nrb": 50,
+   "range_km": 16,
+   "tech": "4G"
+  },
+  "4G1800": {
+   "f": 1800,
+   "eirp": 63,
+   "nrb": 75,
+   "range_km": 10,
+   "tech": "4G"
+  },
+  "4G2100": {
+   "f": 2100,
+   "eirp": 63,
+   "nrb": 75,
+   "range_km": 7,
+   "tech": "4G"
+  },
+  "4G2600": {
+   "f": 2600,
+   "eirp": 64,
+   "nrb": 100,
+   "range_km": 5,
+   "tech": "4G"
+  },
+  "5G700": {
+   "f": 700,
+   "eirp": 60,
+   "nrb": 50,
+   "range_km": 16,
+   "tech": "5G"
+  },
+  "5G2100": {
+   "f": 2100,
+   "eirp": 62,
+   "nrb": 75,
+   "range_km": 6,
+   "tech": "5G"
+  },
+  "5G3500": {
+   "f": 3500,
+   "eirp": 66,
+   "nrb": 273,
+   "range_km": 2.5,
+   "tech": "5G"
+  }
+ },
+ "rx_height_m": 1.5,
+ "clutter_window_m": 400,
+ "building_shadow_cap_per_dB": 25,
+ "building_shadow_cap_total_dB": 30,
+ "veg_length_cap_m": 300,
+ "veg_loss_cap_dB": 30,
+ "indoor_entry_loss_dB": {
+  "700": 14,
+  "800": 14,
+  "1800": 15,
+  "2100": 15,
+  "2600": 15,
+  "3500": 16
+ },
+ "notes": "EIRP dBm total sector, rural macro. Weissberger vegetation. P.2109-2 traditional median entry loss (recomputed eq.1-9)."
+}
