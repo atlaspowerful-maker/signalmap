@@ -12,6 +12,7 @@ https://lab.bourdat.fr/signalmap/methode.html
 | `params.json` | Paramètres : EIRP/N_RB/portée max par scénario de bande, fenêtre clutter 400 m, caps bâtiments 25/30 dB, caps végétation 300 m/30 dB, pertes d'entrée bâti P.2109-2, hauteur récepteur 1,5 m. |
 | `fetch_anfr.py` | **Tâche A.** Télécharge l'export open data ANFR (~66 Mo, data.gouv), filtre à 10 km, décode les positions DMS, apparie aux sites Cartoradio (<60 m + opérateur) et produit `data/sites_anfr.json` : systèmes réels (op × techno × bande) + azimuts des secteurs par site. |
 | `rebuild.py` | Collecte des données : sites ANFR (API Cartoradio), altitudes + profils terrain (API altimétrie IGN, 50 échantillons/profil). Produit `data/all_sites_elev.json`, `data/profiles.json`, `data/tool_data.json`. |
+| `fetch_dem.py` | **Tâche B1.** Dalle DEM locale : 169×169 points au pas de 25 m (4,2×4,2 km, RGE ALTI via API IGN, une seule fois) → `data/dem.json`. Les runners échantillonnent ensuite les profils localement, zéro appel réseau. |
 | `finegrid.py` | Génère la grille du hameau (50×50 = 2500 cellules à 18 m) + altitudes IGN par lots de 120. |
 | `run_fine.py` | **Calcul principal** sur la grille hameau : par cellule × 22 antennes × 4 opérateurs × 8 bandes → RSRP. Géométrie clutter (bâtiments/végétation traversés) calculée une fois par (cellule, antenne), pertes réévaluées par bande via `v = K/√λ`. Sortie `fine_cov.json`. |
 | `run_garden.py` | Idem sur la grille fine du jardin (cellules de 3 m, zone tracée + 9 rangs). |

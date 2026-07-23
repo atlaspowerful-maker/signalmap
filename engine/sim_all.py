@@ -1,4 +1,5 @@
 import json,math,sys,os
+from clutter_engine import terrain_K_dem, Jv as _Jv
 USE_SCENARIOS='--scenarios' in sys.argv
 ANFR=None
 if not USE_SCENARIOS and os.path.exists('data/sites_anfr.json'):
@@ -14,6 +15,7 @@ def _sg(dphi,hpbw=65.0,ftb=25.0):
     if d>180.0:d=360.0-d
     return -min(12.0*(d/hpbw)**2,ftb)
 S=json.load(open('all_sites_elev.json'));sites=S['sites']
+DEM=json.load(open('data/dem.json')) if os.path.exists('data/dem.json') else json.load(open('dem.json'))
 for _s in S['sites']:
     _s['real']={}
     if ANFR and _s['id'] in ANFR:
@@ -21,10 +23,12 @@ for _s in S['sites']:
             _s['real'][(e['op'],e['tech'],e['band_mhz'])]=e['azimuts']
 profiles=json.load(open('profiles.json'))
 G=json.load(open('grid.json'));grid=G['grid'];gel=json.load(open('grid_elev.json'))
+_HL,_HO=G['H']
 HM=1.5;C=299792458.0;kR=4/3*6371000.0
 def hav(a,b,c,d):
     R=6371000.0;p1,p2=math.radians(a),math.radians(c);dp=math.radians(c-a);dl=math.radians(d-b)
     x=math.sin(dp/2)**2+math.cos(p1)*math.cos(p2)*math.sin(dl/2)**2;return 2*R*math.asin(math.sqrt(x))
+DMH={_s['id']:hav(_HL,_HO,_s['lat'],_s['lon']) for _s in sites}
 def Jv(v):
     if v<=-0.78:return 0.0
     return 6.9+20*math.log10(math.sqrt((v-0.1)**2+1)+v-0.1)
@@ -69,9 +73,10 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
                         sg=max(_sg(br-a) for a in azs)
                 elif op not in s['ops'] or tech not in s['ops'][op]:continue
                 if s['dist']>rng:continue
-                z=profiles[s['id']];z0=z[0];z[0]=pe
-                dm=hav(la,lo,s['lat'],s['lon']);n=len(z);step=dm/(n-1)
-                d=deygout(z,0,n-1,pe+HM,s['top'],step,lam,3);z[0]=z0
+                dm=hav(la,lo,s['lat'],s['lon'])
+                Ks=terrain_K_dem(DEM,profiles[s['id']],DMH[s['id']],la,lo,pe,s['lat'],s['lon'],dm,s['top'],HM)
+                import math as _m
+                d=sum(_Jv(K/_m.sqrt(lam)) for K in Ks)
                 r=e+sg-o-fspl(f,dm)-d
                 if r>best:best=r
             row.append(round(best) if best>-900 else S_)

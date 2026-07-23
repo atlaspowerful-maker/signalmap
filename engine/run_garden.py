@@ -11,6 +11,8 @@ HPBW=P.get('sector_hpbw_deg',65.0); FTB=P.get('sector_front_to_back_dB',25.0)
 OMNI_FALLBACK=[0]
 S=json.load(open('all_sites_elev.json')); sites=S['sites']
 profiles=json.load(open('profiles.json'))
+DEM=json.load(open('data/dem.json')) if os.path.exists('data/dem.json') else json.load(open('dem.json'))
+DM_HOUSE={}
 FG=json.load(open('gardengrid.json')); grid=FG['grid']; gel=FG['elev']
 blds=json.load(open('clutter_bld.json')); vegs=json.load(open('clutter_veg.json'))
 HM=P['rx_height_m']; W=P['clutter_window_m']
@@ -27,6 +29,7 @@ def prep(polys):
 BLD=prep(blds); VEG=prep(vegs)
 for s in sites:
     s['top']=s['elev']+s['h']; s['xy']=to_xy(s['lat'],s['lon'],LAT0,LON0)
+    DM_HOUSE[s['id']]=math.hypot(*s['xy'])
     s['real']={}
     if ANFR and s['id'] in ANFR:
         for e in ANFR[s['id']]['systems']:
@@ -56,7 +59,7 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
         dm=math.hypot(*dxy)
         if dm<1: dm=1
         ux,uy=dxy[0]/dm, dxy[1]/dm
-        Ks=terrain_K(profiles[s['id']], pe, dm, s['top'], HM)
+        Ks=terrain_K_dem(DEM,profiles[s['id']],DM_HOUSE[s['id']],la,lo,pe,s['lat'],s['lon'],dm,s['top'],HM)
         wl=min(W,dm)
         bh=ray_clutter(px,py,ux,uy,wl,BLD,inside_skip=inbld)
         bedges=[]

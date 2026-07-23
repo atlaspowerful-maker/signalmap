@@ -87,3 +87,37 @@ def bearing_deg(lat1,lon1,lat2,lon2):
     p1,p2=_m.radians(lat1),_m.radians(lat2);dl=_m.radians(lon2-lon1)
     x=_m.sin(dl)*_m.cos(p2);y=_m.cos(p1)*_m.sin(p2)-_m.sin(p1)*_m.cos(p2)*_m.cos(dl)
     return (_m.degrees(_m.atan2(x,y))+360.0)%360.0
+
+def dem_z(D,lat,lon):
+    """Bilinear sample of the local DEM tile (data/dem.json). Clamps to tile edges."""
+    i=(lat-D['lat0'])/D['dlat']; j=(lon-D['lon0'])/D['dlon']
+    n=D['n']
+    if i<0:i=0.0
+    if j<0:j=0.0
+    if i>n-1.001:i=n-1.001
+    if j>n-1.001:j=n-1.001
+    i0=int(i);j0=int(j);ti=i-i0;tj=j-j0
+    z=D['z']
+    a=z[i0*n+j0];b=z[i0*n+j0+1];c=z[(i0+1)*n+j0];d=z[(i0+1)*n+j0+1]
+    return a*(1-ti)*(1-tj)+b*(1-ti)*tj+c*ti*(1-tj)+d*ti*tj
+def terrain_K_dem(D,hp,dm_house,cell_lat,cell_lon,pe,site_lat,site_lon,dm,top_asl,hm,R_near=1200.0,N=60):
+    """B1: per-cell hybrid profile. Near field (<=R_near from the cell) sampled in the local
+    DEM along the cell->site direction; far field mapped from the reference house->site
+    profile indexed by distance-to-site (terrain >1.2 km away is shared across cells)."""
+    zs=[]
+    for k in range(N+1):
+        x=dm*k/N
+        if x<=R_near:
+            f=x/dm
+            zs.append(dem_z(D,cell_lat+(site_lat-cell_lat)*f,cell_lon+(site_lon-cell_lon)*f))
+        else:
+            y=dm-x
+            i=(len(hp)-1)*(1.0-y/dm_house)
+            i0=int(i)
+            if i0<0:i0=0
+            if i0>len(hp)-2:i0=len(hp)-2
+            t=i-i0
+            zs.append(hp[i0]*(1-t)+hp[i0+1]*t)
+    out=[]
+    deygout_K(zs,0,N,pe+hm,top_asl,dm/N,3,out)
+    return out

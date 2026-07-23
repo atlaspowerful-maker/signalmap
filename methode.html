@@ -69,8 +69,8 @@ on choisit l'un <b>ou</b> l'autre. Ici : FSPL (base « propre ») + pertes expli
 <td>ANFR — API Cartoradio + export open data « installations &gt; 5 W »<br><span class="src">cartoradio.fr · data.gouv.fr (export du 30/06/2026, tables SUP_*)</span></td>
 <td>22 sites (~10 km), <b>21 appariés</b> à l'export ANFR (&lt; 60 m + opérateur ; site 1584007 non apparié → repli scénario, loggé). <b>Non publié</b> : EIRP par bande, tilt vertical.</td></tr>
 <tr><td>Relief : altitude de chaque point + profils terrain maison→antenne</td>
-<td>IGN Géoplateforme, MNT RGE ALTI<br><span class="src">data.geopf.fr/altimetrie (elevation, elevationLine)</span></td>
-<td>50 échantillons par profil (~100–200 m d'espacement selon la distance).</td></tr>
+<td>IGN Géoplateforme, MNT RGE ALTI<br><span class="src">data.geopf.fr/altimetrie + dalle locale <code>data/dem.json</code> (169×169, pas 25 m, 4,2×4,2 km)</span></td>
+<td>Profils <b>par cellule</b> : champ proche (≤ 1,2 km) échantillonné dans la dalle locale le long du trajet cellule→antenne (interp. bilinéaire), champ lointain repris du profil de référence maison→antenne indexé par la distance au site (le relief à &gt; 1,2 km est commun à toutes les cellules du hameau). 61 échantillons/profil. Pas de 25 m (et non 5 m) : compromis volume API / précision, assumé.</td></tr>
 <tr><td>Bâtiments : emprise + <b>hauteur mesurée</b></td>
 <td>IGN BD TOPO, couche <code>batiment</code> (WFS)</td>
 <td>165 bâtiments dans la zone, hauteurs 1,6–9,8 m.</td></tr>
@@ -222,9 +222,7 @@ sont plus fiables que les valeurs absolues.</div>
 <li><b>EIRP inconnu</b> — non public, par site et par bande. Valeurs types utilisées ; ±5 dB facilement.</li>
 <li><b>Bandes par site : réelles depuis l'export ANFR</b> (tables SUP_EMETTEUR, ex. « LTE 800 », « 5G NR 3500 »). Restent inconnus : l'<b>EIRP</b> par bande et la largeur de canal réelle par site.</li>
 <li><b>Azimuts réels appliqués</b> (diagramme 3GPP 65°, §3.7) — le cas Marnans est tranché : un secteur pointe bien vers Thodure (290° vs 280° requis). Reste non modélisé : le <b>diagramme vertical et le tilt</b> (caps de portée pratiques en attendant, cf. §3.5).</li>
-<li><b>Profils de terrain approximés hors du point d'origine</b> — les 50 échantillons du profil sont tirés
-depuis la maison ; pour les autres cellules de la grille, le profil est réutilisé avec l'altitude locale
-substituée au point de départ. Exact à la maison, approché à ±500 m (le terrain de plaine varie peu ici).</li>
+<li><b>Profils par cellule (B1)</b> : champ proche exact (dalle DEM locale 25 m), champ lointain partagé entre cellules (identique à &gt; 1,2 km à l'échelle du hameau). Résidus : le pas de 25 m lisse les micro-talus ; le raccord proche/lointain peut créer une marche &lt; 2 m en terrain plat.</li>
 <li><b>Arête de couteau vs collines arrondies</b> — P.526 knife-edge sous-estime la perte des buttes larges
 et douces (un terme « rounded obstacle » existe dans P.526, non implémenté).</li>
 <li><b>Végétation saisonnière</b> — Weissberger « in-leaf » ; l'hiver, comptez 3–6 dB de mieux à travers
