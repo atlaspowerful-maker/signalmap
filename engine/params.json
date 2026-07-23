@@ -53,7 +53,7 @@
    "f": 3500,
    "eirp": 66,
    "nrb": 273,
-   "range_km": 2.5,
+   "range_km": 5.0,
    "tech": "5G"
   }
  },
@@ -71,5 +71,7 @@
   "2600": 15,
   "3500": 16
  },
- "notes": "EIRP dBm total sector, rural macro. Weissberger vegetation. P.2109-2 traditional median entry loss (recomputed eq.1-9)."
+ "notes": "EIRP dBm total sector, rural macro. Weissberger vegetation. P.2109-2 traditional median entry loss (recomputed eq.1-9). Sector pattern 3GPP A_h=-min(12(dphi/hpbw)^2,FTB). 5G3500 range 5.0 km (real n78 sites: Beaufort 2.94 km, Viriville 4.72 km; caps removed at C1).",
+ "sector_hpbw_deg": 65.0,
+ "sector_front_to_back_dB": 25.0
 }

@@ -1,6 +1,14 @@
-import json, math, time
+import json, math, time, sys, os
 from clutter_engine import *
 P=json.load(open('params.json'))
+USE_SCENARIOS='--scenarios' in sys.argv
+ANFR=None
+if not USE_SCENARIOS and os.path.exists('data/sites_anfr.json'):
+    ANFR=json.load(open('data/sites_anfr.json'))['matched']
+elif not USE_SCENARIOS:
+    print('AVERTISSEMENT: data/sites_anfr.json absent -> mode scenarios'); USE_SCENARIOS=True
+HPBW=P.get('sector_hpbw_deg',65.0); FTB=P.get('sector_front_to_back_dB',25.0)
+OMNI_FALLBACK=[0]
 S=json.load(open('all_sites_elev.json')); sites=S['sites']
 profiles=json.load(open('profiles.json'))
 FG=json.load(open('finegrid.json')); grid=FG['grid']; gel=FG['elev']
@@ -17,7 +25,14 @@ def prep(polys):
         out.append({'xy':xy,'bbox':(min(xs),min(ys),max(xs),max(ys)),'h':p['h']})
     return out
 BLD=prep(blds); VEG=prep(vegs)
-for s in sites: s['top']=s['elev']+s['h']; s['xy']=to_xy(s['lat'],s['lon'],LAT0,LON0)
+for s in sites:
+    s['top']=s['elev']+s['h']; s['xy']=to_xy(s['lat'],s['lon'],LAT0,LON0)
+    s['real']={}
+    if ANFR and s['id'] in ANFR:
+        for e in ANFR[s['id']]['systems']:
+            s['real'][(e['op'],e['tech'],e['band_mhz'])]=e['azimuts']
+    elif ANFR:
+        print(f"  site {s['id']} non apparie ANFR -> fallback scenarios/omni")
 SC=P['scenarios']; SCK=list(SC.keys())
 LAMS={k:C/(v['f']*1e6) for k,v in SC.items()}
 FGHZ={k:v['f']/1000.0 for k,v in SC.items()}
@@ -71,13 +86,21 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
             cfg=SC[sc]; lam=LAMS[sc]; sq=math.sqrt(lam); fg=FGHZ[sc]
             best=-999; bgeo=None
             for s in sites:
-                if op not in s['ops'] or cfg['tech'] not in s['ops'][op]: continue
+                sg=0.0
+                if not USE_SCENARIOS and s['real']:
+                    key=(op,cfg['tech'],cfg['f'])
+                    if key not in s['real']: continue
+                    azs=s['real'][key]
+                    if azs:
+                        br=bearing_deg(s['lat'],s['lon'],la,lo)
+                        sg=max(sector_gain(br-a,HPBW,FTB) for a in azs)
+                elif op not in s['ops'] or cfg['tech'] not in s['ops'][op]: continue
                 dm,Ks,bedges,vlen,nb=geo[s['id']]
                 if dm/1000.0>cfg['range_km']: continue
                 Lt=sum(Jv(K/sq) for K in Ks)
                 Lb=min(sum(min(Jv(K/sq),P['building_shadow_cap_per_dB']) for K in bedges), P['building_shadow_cap_total_dB'])
                 Lv=min(weissberger(fg,vlen), P['veg_loss_cap_dB'])
-                r=cfg['eirp']-OFF[sc]-fspl(cfg['f'],dm)-Lt-Lb-Lv
+                r=cfg['eirp']+sg-OFF[sc]-fspl(cfg['f'],dm)-Lt-Lb-Lv
                 if r>best: best=r; bgeo=(nb,vlen)
             row.append(round(best) if best>-900 else -999)
             if sc=='4G800' and best>bestglob and bgeo:

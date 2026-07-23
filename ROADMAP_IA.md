@@ -246,4 +246,4 @@ retrouver des offsets injectés à ±1 dB près).
 
 | Date | Tâche | Commit | Résultat / écarts chiffrés | Blocages |
 |---|---|---|---|---|
-| | | | | |
+| 2026-07-23 | A | (ce commit) | 21/22 sites appariés (1584007 → repli scénario, loggé). Écarts réel-sectorisé vs omni-scénarios (hameau) : SFR/Bouygues 1800/2100 −16/−17 dB moy (max −60, Chambaran hors-axe) ; Free B20 supprimée (bande fantôme, −72 dB) ; Orange B7 et n1 locales supprimées ; Orange n78 gagnée (Beaufort 2,94 km, secteur 160° = 27° hors-axe → couverture n78 réelle). Cas test Marnans : secteur 290° vs cap requis 280° → dans l'axe (−0,3 dB), confirmé. Cap 3500 porté à 5 km (sites n78 réels à 2,9 et 4,7 km), suppression prévue en C1. LTE 900 (Free B8) présent dans les données, non simulé (pas de scénario 4G900) — proxy 4G700 dans l'outil bandes, à traiter en C. | — |

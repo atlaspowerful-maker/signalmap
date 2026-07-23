@@ -65,9 +65,9 @@ on choisit l'un <b>ou</b> l'autre. Ici : FSPL (base « propre ») + pertes expli
 <h2 id="data">2. Données d'entrée (toutes réelles)</h2>
 <table>
 <tr><th>Donnée</th><th>Source</th><th>Détail</th></tr>
-<tr><td>Antennes : position, hauteur du support, technos (2G/3G/4G/5G) par opérateur</td>
-<td>ANFR — API Cartoradio<br><span class="src">cartoradio.fr/api/v1/sites</span></td>
-<td>22 sites dans un rayon de ~10 km. <b>Non publié</b> : bandes de fréquence par site, azimuts des secteurs, puissances.</td></tr>
+<tr><td>Antennes : position, hauteur, <b>systèmes réels par site</b> (techno × bande × opérateur) et <b>azimuts des secteurs</b></td>
+<td>ANFR — API Cartoradio + export open data « installations &gt; 5 W »<br><span class="src">cartoradio.fr · data.gouv.fr (export du 30/06/2026, tables SUP_*)</span></td>
+<td>22 sites (~10 km), <b>21 appariés</b> à l'export ANFR (&lt; 60 m + opérateur ; site 1584007 non apparié → repli scénario, loggé). <b>Non publié</b> : EIRP par bande, tilt vertical.</td></tr>
 <tr><td>Relief : altitude de chaque point + profils terrain maison→antenne</td>
 <td>IGN Géoplateforme, MNT RGE ALTI<br><span class="src">data.geopf.fr/altimetrie (elevation, elevationLine)</span></td>
 <td>50 échantillons par profil (~100–200 m d'espacement selon la distance).</td></tr>
@@ -77,9 +77,9 @@ on choisit l'un <b>ou</b> l'autre. Ici : FSPL (base « propre ») + pertes expli
 <tr><td>Végétation : bois, forêts, haies, vergers</td>
 <td>IGN BD TOPO, couche <code>zone_de_vegetation</code></td>
 <td>73 polygones (38 haies, 34 bois/forêts). Hauteurs forfaitaires : haie 4 m, bois 15 m, forêt 18 m.</td></tr>
-<tr><td>Bandes déployées par opérateur (scénarios)</td>
+<tr><td>Bandes par site (mode « scénarios » de secours, flag <code>--scenarios</code>)</td>
 <td>Observatoire ANFR (juillet 2026), fact-checké</td>
-<td>Ex. : zéro 5G 700 MHz chez SFR/Bouygues ; n28 = couche de couverture chez Free (~25 700 sites) et Orange (~15 200).</td></tr>
+<td>Utilisé seulement pour comparaison et pour les sites non appariés. Le mode nominal lit les systèmes réels ANFR.</td></tr>
 </table>
 
 <h2 id="chaine">3. La chaîne de calcul, terme par terme</h2>
@@ -158,6 +158,17 @@ bandes hautes (budget uplink du téléphone, tilt des antennes).</p>
 <p><span class="src">Réf. : ITU-R P.2109-2 (08/2023), modèle « traditional buildings », médiane à incidence horizontale recalculée via les éq. (1)–(9) — la dépendance fréquentielle de la médiane est quasi plate (~14–16 dB de 0,7 à 3,5 GHz).
 Un bâtiment « thermally-efficient » (vitrage métallisé, isolation RT2012/RE2020) serait nettement plus sévère (médiane ~27–30 dB).</span></p>
 
+<h3>3.7 Diagramme d'antenne sectoriel (azimuts réels ANFR)</h3>
+<p>Chaque système (opérateur × techno × bande) d'un site porte les azimuts réels de ses aériens
+(export ANFR). Le gain horizontal appliqué suit le diagramme de référence 3GPP :</p>
+<div class="formula">A_h(Δφ) = −min( 12·(Δφ / HPBW)², FTB )    avec HPBW = 65°, FTB = 25 dB</div>
+<p>Δφ = écart entre l'azimut du secteur et le cap site→cellule. Le gain retenu est le <b>max sur les
+secteurs</b> du système (un mobile est servi par le meilleur secteur). Si un aérien n'a pas d'azimut
+publié (antenne omni ou champ vide), repli omnidirectionnel (0 dB), loggé.
+<span class="src">Réf. : 3GPP TR 36.814 tableau A.2.1.1-2 (diagramme sectoriel de référence).
+Exemple concret : le site de Marnans a un secteur à 290° pour un cap requis de 280° vers Thodure
+(−0,3 dB) ; celui de Chambaran vise 0/120/240° pour un cap requis de 303° (−9 dB minimum) — l'omni
+le surestimait d'autant.</span></p>
 <h2 id="seuils">4. Seuils de qualité RSRP</h2>
 <table>
 <tr><th>RSRP</th><th>Qualité</th><th>Expérience</th></tr>
@@ -194,6 +205,7 @@ jardin — ordres de grandeur conformes à la littérature shadowing (σ 6–10 
 NLOS (formule complète en annexe du repo) — les deux convergent à ±10 dB près sur les trajets non dégagés,
 le déterministe étant plus favorable sur les trajets à vue (attendu et souhaité).</li>
 <li><b>Relecture adversariale</b> : cette page et le code ont été vérifiés par deux passes indépendantes (formules vs standards ITU/3GPP ; doc vs code exécuté) — qui ont notamment détecté et fait corriger avant publication un bug de signe sur la courbure terrestre et l'offset RE du n78.</li>
+<li><b>Écart omni-scénarios vs réel-sectorisé chiffré</b> : jusqu'à −60 dB sur les cellules hors-axe (Chambaran), bandes fantômes supprimées (Free B20, Orange B7 local), bandes réelles gagnées (Orange n78 à Beaufort 2,9 km, secteur à 27° de l'axe).</li>
 <li><b>Fact-check des déploiements</b> : bandes 5G par opérateur vérifiées contre l'observatoire ANFR
 juillet 2026 (ex. : SFR/Bouygues = zéro site 5G en 700 MHz — l'absence de 5G SFR constatée sur place a
 été le déclencheur de cette correction).</li>
@@ -205,10 +217,8 @@ Incertitude absolue estimée : <b>±8–10 dB</b>. Les <i>contrastes</i> (où c'
 sont plus fiables que les valeurs absolues.</div>
 <ol>
 <li><b>EIRP inconnu</b> — non public, par site et par bande. Valeurs types utilisées ; ±5 dB facilement.</li>
-<li><b>Bandes par site non publiées</b> — Cartoradio dit « ce site a de la 4G/5G », pas sur quelle fréquence.
-Les cartes par bande sont donc des <b>scénarios</b> contraints par les déploiements nationaux connus.</li>
-<li><b>Antennes supposées omnidirectionnelles</b> — les azimuts des secteurs ne sont pas publics. Une antenne
-dont aucun secteur ne pointe vers Thodure surestimera le signal (cas plausible du site de Marnans à 7,3 km).</li>
+<li><b>Bandes par site : réelles depuis l'export ANFR</b> (tables SUP_EMETTEUR, ex. « LTE 800 », « 5G NR 3500 »). Restent inconnus : l'<b>EIRP</b> par bande et la largeur de canal réelle par site.</li>
+<li><b>Azimuts réels appliqués</b> (diagramme 3GPP 65°, §3.7) — le cas Marnans est tranché : un secteur pointe bien vers Thodure (290° vs 280° requis). Reste non modélisé : le <b>diagramme vertical et le tilt</b> (caps de portée pratiques en attendant, cf. §3.5).</li>
 <li><b>Profils de terrain approximés hors du point d'origine</b> — les 50 échantillons du profil sont tirés
 depuis la maison ; pour les autres cellules de la grille, le profil est réutilisé avec l'altitude locale
 substituée au point de départ. Exact à la maison, approché à ±500 m (le terrain de plaine varie peu ici).</li>

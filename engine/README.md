@@ -10,6 +10,7 @@ https://lab.bourdat.fr/signalmap/methode.html
 |---|---|
 | `clutter_engine.py` | **Cœur du modèle.** J(v) ITU-R P.526, récursion de Deygout (cache d'arêtes `K` indépendant de la fréquence, courbure terrestre k=4/3), projection locale lat/lon→mètres (équirectangulaire `to_xy`), intersections segment-polygone, point-in-polygon, Weissberger végétation. ~60 lignes. |
 | `params.json` | Paramètres : EIRP/N_RB/portée max par scénario de bande, fenêtre clutter 400 m, caps bâtiments 25/30 dB, caps végétation 300 m/30 dB, pertes d'entrée bâti P.2109-2, hauteur récepteur 1,5 m. |
+| `fetch_anfr.py` | **Tâche A.** Télécharge l'export open data ANFR (~66 Mo, data.gouv), filtre à 10 km, décode les positions DMS, apparie aux sites Cartoradio (<60 m + opérateur) et produit `data/sites_anfr.json` : systèmes réels (op × techno × bande) + azimuts des secteurs par site. |
 | `rebuild.py` | Collecte des données : sites ANFR (API Cartoradio), altitudes + profils terrain (API altimétrie IGN, 50 échantillons/profil). Produit `data/all_sites_elev.json`, `data/profiles.json`, `data/tool_data.json`. |
 | `finegrid.py` | Génère la grille du hameau (50×50 = 2500 cellules à 18 m) + altitudes IGN par lots de 120. |
 | `run_fine.py` | **Calcul principal** sur la grille hameau : par cellule × 22 antennes × 4 opérateurs × 8 bandes → RSRP. Géométrie clutter (bâtiments/végétation traversés) calculée une fois par (cellule, antenne), pertes réévaluées par bande via `v = K/√λ`. Sortie `fine_cov.json`. |
@@ -17,6 +18,13 @@ https://lab.bourdat.fr/signalmap/methode.html
 | `sim_all.py` | Variante « bandes seulement » du hameau (sans clutter bâtiments/végétation) pour la carte hameau.html. |
 | `gen_fine_map.py`, `gen_all_map.py` | Générateurs des pages HTML : payload JSON embarqué + Leaflet (vendorisé, cf. CSP). |
 | `data/` | Jeux de données d'entrée figés (antennes, profils, bâtiments BD TOPO avec hauteurs, végétation, grilles+altitudes) — permet de relancer les calculs sans re-frapper les API. |
+
+## Secteurs (Tâche A)
+
+Les runners lisent `data/sites_anfr.json` (mode nominal) : un site n'est éligible pour
+(opérateur, techno, bande) que si le système existe réellement, et le gain horizontal
+3GPP `A_h = −min(12(Δφ/65°)², 25 dB)` est appliqué au meilleur secteur. `--scenarios`
+restaure l'ancien mode (présence Cartoradio + omni) pour comparaison.
 
 ## Les « tuiles »
 

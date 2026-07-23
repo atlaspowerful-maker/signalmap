@@ -1,0 +1,19 @@
+# copies de travail (les canoniques vivent dans data/)
+all_sites_elev.json
+profiles.json
+tool_data.json
+clutter_bld.json
+clutter_veg.json
+finegrid.json
+gardengrid.json
+grid.json
+grid_elev.json
+buildings.json
+# sorties de calcul (embarquées dans les pages HTML)
+fine_cov*.json
+garden_cov.json
+sim_all_grid.json
+# archives ANFR (66 Mo, re-téléchargeables)
+anfr_export.zip
+anfr_ref.zip
+__pycache__/

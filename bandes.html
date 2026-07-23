@@ -82,7 +82,7 @@ const PHONES = {
 const BANDS = [
  {id:"B28", f:"700",  tech:"4G", scen:"4G700"},
  {id:"B20", f:"800",  tech:"4G", scen:"4G800"},
- {id:"B8",  f:"900",  tech:"4G", scen:"4G800", approx:true},
+ {id:"B8",  f:"900",  tech:"4G", scen:"4G700", approx:true},
  {id:"B3",  f:"1800", tech:"4G", scen:"4G1800"},
  {id:"B1",  f:"2100", tech:"4G", scen:"4G2100"},
  {id:"B7",  f:"2600", tech:"4G", scen:"4G2600"},
@@ -103,7 +103,7 @@ const OPS = {
              note:"Free n'a jamais eu de 800 (B20). Sa 5G de couverture = n28 (700, ~25 700 sites). Sa 3G propre a été arrêtée fin 2025 (900 refarmé en 4G B8)."}
 };
 // RSRP moyen simulé dans le jardin (micro-simulation, dBm) par opérateur et scénario
-const GARDEN = {"Orange": {"4G700": -81, "4G800": -81, "4G1800": -86, "4G2100": -95, "4G2600": -109, "5G700": -91, "5G2100": -107, "5G3500": null}, "SFR": {"4G700": -85, "4G800": -84, "4G1800": -89, "4G2100": -105, "4G2600": -134, "5G700": -102, "5G2100": -132, "5G3500": null}, "Bouygues": {"4G700": -85, "4G800": -84, "4G1800": -89, "4G2100": -105, "4G2600": -134, "5G700": -102, "5G2100": -132, "5G3500": null}, "Free": {"4G700": -81, "4G800": -81, "4G1800": -86, "4G2100": -95, "4G2600": -109, "5G700": -91, "5G2100": -107, "5G3500": null}};
+const GARDEN = {"Orange": {"4G700": -83, "4G800": -82, "4G1800": -99, "4G2100": -108, "4G2600": null, "5G700": -92, "5G2100": null, "5G3500": -118}, "SFR": {"4G700": -85, "4G800": -85, "4G1800": -108, "4G2100": -127, "4G2600": null, "5G700": -163, "5G2100": -133, "5G3500": null}, "Bouygues": {"4G700": -85, "4G800": -85, "4G1800": -108, "4G2100": -127, "4G2600": null, "5G700": -163, "5G2100": -133, "5G3500": null}, "Free": {"4G700": -84, "4G800": -165, "4G1800": -104, "4G2100": -107, "4G2600": -118, "5G700": -97, "5G2100": null, "5G3500": -152}};
 // ===== UI =====
 const selP=document.getElementById('phone'), selO=document.getElementById('op'), selF=document.getElementById('plan');
 Object.keys(PHONES).forEach(k=>{const o=document.createElement('option');o.textContent=k;selP.appendChild(o);});

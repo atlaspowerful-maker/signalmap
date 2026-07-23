@@ -70,3 +70,14 @@ def weissberger(f_ghz,d):
     if d<=14: L=0.45*(f_ghz**0.284)*d
     else: L=1.33*(f_ghz**0.284)*(d**0.588)
     return L
+
+def sector_gain(dphi_deg,hpbw=65.0,ftb=25.0):
+    """3GPP horizontal pattern: A_h = -min(12*(dphi/hpbw)^2, front_to_back). Returns dB (<=0)."""
+    d=abs(dphi_deg)%360.0
+    if d>180.0: d=360.0-d
+    return -min(12.0*(d/hpbw)**2, ftb)
+def bearing_deg(lat1,lon1,lat2,lon2):
+    import math as _m
+    p1,p2=_m.radians(lat1),_m.radians(lat2);dl=_m.radians(lon2-lon1)
+    x=_m.sin(dl)*_m.cos(p2);y=_m.cos(p1)*_m.sin(p2)-_m.sin(p1)*_m.cos(p2)*_m.cos(dl)
+    return (_m.degrees(_m.atan2(x,y))+360.0)%360.0

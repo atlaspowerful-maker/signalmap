@@ -1,5 +1,24 @@
-import json,math
+import json,math,sys,os
+USE_SCENARIOS='--scenarios' in sys.argv
+ANFR=None
+if not USE_SCENARIOS and os.path.exists('data/sites_anfr.json'):
+    ANFR=json.load(open('data/sites_anfr.json'))['matched']
+elif not USE_SCENARIOS:
+    print('AVERTISSEMENT: sites_anfr.json absent -> scenarios'); USE_SCENARIOS=True
+def _brg(lat1,lon1,lat2,lon2):
+    p1,p2=math.radians(lat1),math.radians(lat2);dl=math.radians(lon2-lon1)
+    x=math.sin(dl)*math.cos(p2);y=math.cos(p1)*math.sin(p2)-math.sin(p1)*math.cos(p2)*math.cos(dl)
+    return (math.degrees(math.atan2(x,y))+360.0)%360.0
+def _sg(dphi,hpbw=65.0,ftb=25.0):
+    d=abs(dphi)%360.0
+    if d>180.0:d=360.0-d
+    return -min(12.0*(d/hpbw)**2,ftb)
 S=json.load(open('all_sites_elev.json'));sites=S['sites']
+for _s in S['sites']:
+    _s['real']={}
+    if ANFR and _s['id'] in ANFR:
+        for e in ANFR[_s['id']]['systems']:
+            _s['real'][(e['op'],e['tech'],e['band_mhz'])]=e['azimuts']
 profiles=json.load(open('profiles.json'))
 G=json.load(open('grid.json'));grid=G['grid'];gel=json.load(open('grid_elev.json'))
 HM=1.5;C=299792458.0;kR=4/3*6371000.0
@@ -28,7 +47,7 @@ SC={
  '4G2600':(2600,64,30.8,5,'4G'),
  '5G700':(700,60,27.8,16,'5G'),
  '5G2100':(2100,62,29.5,6,'5G'),
- '5G3500':(3500,66,32.8,2.5,'5G'),
+ '5G3500':(3500,66,35.2,5.0,'5G'),
 }
 LAM={k:C/(v[0]*1e6) for k,v in SC.items()}
 OPS=['Orange','SFR','Bouygues','Free']
@@ -40,11 +59,20 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
         for sc,(f,e,o,rng,tech) in SC.items():
             lam=LAM[sc];best=-999
             for s in sites:
-                if op not in s['ops'] or tech not in s['ops'][op] or s['dist']>rng:continue
+                sg=0.0
+                if not USE_SCENARIOS and s['real']:
+                    key=(op,tech,f)
+                    if key not in s['real']:continue
+                    azs=s['real'][key]
+                    if azs:
+                        br=_brg(s['lat'],s['lon'],la,lo)
+                        sg=max(_sg(br-a) for a in azs)
+                elif op not in s['ops'] or tech not in s['ops'][op]:continue
+                if s['dist']>rng:continue
                 z=profiles[s['id']];z0=z[0];z[0]=pe
                 dm=hav(la,lo,s['lat'],s['lon']);n=len(z);step=dm/(n-1)
                 d=deygout(z,0,n-1,pe+HM,s['top'],step,lam,3);z[0]=z0
-                r=e-o-fspl(f,dm)-d
+                r=e+sg-o-fspl(f,dm)-d
                 if r>best:best=r
             row.append(round(best) if best>-900 else S_)
     pts.append(row)
