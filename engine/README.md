@@ -19,6 +19,12 @@ https://lab.bourdat.fr/signalmap/methode.html
 | `gen_fine_map.py`, `gen_all_map.py` | Générateurs des pages HTML : payload JSON embarqué + Leaflet (vendorisé, cf. CSP). |
 | `data/` | Jeux de données d'entrée figés (antennes, profils, bâtiments BD TOPO avec hauteurs, végétation, grilles+altitudes) — permet de relancer les calculs sans re-frapper les API. |
 
+## Intérieur des bâtiments (note B4)
+
+Le moteur ne calcule que le RSRP **extérieur**. La perte d'entrée P.2109 est appliquée
+**côté client** : `gen_fine_map.py` embarque `params.indoor_entry_loss_dB` dans le payload
+(`ind`) et le JS de la page la soustrait dans la vue « Intérieur maisons ».
+
 ## Secteurs (Tâche A)
 
 Les runners lisent `data/sites_anfr.json` (mode nominal) : un site n'est éligible pour

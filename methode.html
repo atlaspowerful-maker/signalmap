@@ -155,7 +155,7 @@ bandes hautes (budget uplink du téléphone, tilt des antennes).</p>
 <tr><th>Fréquence</th><td>700–800 MHz</td><td>1800</td><td>2100</td><td>2600</td><td>3500</td></tr>
 <tr><th>Perte (dB)</th><td>14</td><td>15</td><td>15</td><td>15</td><td>16</td></tr>
 </table>
-<p><span class="src">Réf. : ITU-R P.2109-2 (08/2023), modèle « traditional buildings », médiane à incidence horizontale recalculée via les éq. (1)–(9) — la dépendance fréquentielle de la médiane est quasi plate (~14–16 dB de 0,7 à 3,5 GHz).
+<p><span class="src">Réf. : ITU-R P.2109-2 (08/2023), modèle « traditional buildings », médiane à incidence horizontale recalculée via les éq. (1)–(9) — la dépendance fréquentielle de la médiane est quasi plate (~14–16 dB de 0,7 à 3,5 GHz). Implémentation : cette perte est appliquée <b>côté client</b> (payload <code>ind</code> des pages, soustraite en JavaScript dans la vue intérieur), pas dans le moteur Python — le moteur ne produit que le RSRP extérieur.
 Un bâtiment « thermally-efficient » (vitrage métallisé, isolation RT2012/RE2020) serait nettement plus sévère (médiane ~27–30 dB).</span></p>
 
 <h3>3.7 Diagramme d'antenne sectoriel (azimuts réels ANFR)</h3>

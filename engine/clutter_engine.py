@@ -46,9 +46,12 @@ def point_in_poly_xy(x,y,poly_xy):
         xi,yi=poly_xy[i]; xj,yj=poly_xy[i+1]
         if (yi>y)!=(yj>y) and x<(xj-xi)*(y-yi)/(yj-yi)+xi: ins=not ins
     return ins
+RAY_WARNINGS={'odd_intersections':0}
 def ray_clutter(px,py,ux,uy,W,polys,inside_skip=None):
-    """polys: list of dicts {xy,bbox,h}. Returns crossings [(t_mid*W, h)] for buildings mode,
-       or total length inside for veg mode (use spans=True)."""
+    """polys: list of dicts {xy,bbox,h}. Returns crossing spans [(t_in,t_out,poly)].
+       Robustesse: nombre impair d'intersections (rayon tangent a un sommet/arete) avec
+       point de depart HORS polygone -> la derniere valeur isolee est ignoree et comptee
+       dans RAY_WARNINGS['odd_intersections'] (B3)."""
     qx,qy=px+ux*W,py+uy*W
     rminx,rmaxx=min(px,qx),max(px,qx); rminy,rmaxy=min(py,qy),max(py,qy)
     hits=[]
@@ -59,11 +62,14 @@ def ray_clutter(px,py,ux,uy,W,polys,inside_skip=None):
         ts=seg_intersect_ts(px,py,qx,qy,pl['xy'])
         inside0=point_in_poly_xy(px,py,pl['xy'])
         if inside0: ts=[0.0]+ts
-        if len(ts)>=2:
-            for a,b in zip(ts[0::2],ts[1::2]):
-                hits.append((a,b,pl))
-        elif len(ts)==1 and inside0:
-            hits.append((0.0,ts[0],pl))
+        if len(ts)%2==1:
+            if inside0:
+                pass  # deja gere: t=0 ajoute, la sortie manquante = rayon finit dedans
+            else:
+                RAY_WARNINGS['odd_intersections']+=1
+                ts=ts[:-1]
+        for a,b in zip(ts[0::2],ts[1::2]):
+            hits.append((a,b,pl))
     return hits
 def weissberger(f_ghz,d):
     if d<=0: return 0.0
