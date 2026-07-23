@@ -124,8 +124,11 @@ cohérent avec la littérature sur le shadowing résidentiel. <span class="src">
 hauteur de canopée au point de traversée), et on applique le « Modified Exponential Decay » :</p>
 <div class="formula">L_veg = 0,45 · f_GHz^0,284 · d          pour 0 ≤ d ≤ 14 m
 L_veg = 1,33 · f_GHz^0,284 · d^0,588    pour 14 < d ≤ 400 m</div>
-<p>plafonné à 30 dB (au-delà, la propagation latérale au-dessus de la canopée domine).
-Longueur totale de végétation plafonnée à 300 m.
+<p>La perte est calculée <b>par tronçon</b> — chaque polygone traversé (haie, bois) est un volume de
+feuillage distinct dont la perte propre est évaluée puis sommée — et non sur la longueur totale cumulée :
+la concavité de la formule rendrait sinon deux haies de 10 m équivalentes à un seul bosquet de 20 m
+(optimiste d'environ 5 dB en moyenne ici, jusqu'à 13 dB mesurés sur le hameau). Somme plafonnée à 30 dB
+(au-delà, la propagation latérale au-dessus de la canopée domine). Longueur totale plafonnée à 300 m.
 <span class="src">Réf. : M.A. Weissberger, « An initial critical summary of models for predicting the attenuation
 of radio waves by trees », ESD-TR-81-101, 1982. Alternative normative : ITU-R P.833-10.</span></p>
 

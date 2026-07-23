@@ -70,15 +70,15 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
             K=hrel*math.sqrt(2*(1/xm+1/d2))
             if K>-0.5: bedges.append(K)
         vh=ray_clutter(px,py,ux,uy,wl,VEG,inside_skip=None)
-        vlen=0.0
+        vsegs=[]; vtot=0.0
         for a,b,pl in vh:
-            # only count if ray below canopy at crossing midpoint
             xm=0.5*(a+b)*wl
             yray=(pe+HM)+(s['top']-(pe+HM))*(max(xm,1)/dm)
             if yray < pe+pl['h']:
-                vlen+=(b-a)*wl
-        vlen=min(vlen,P['veg_length_cap_m'])
-        geo[s['id']]=(dm,Ks,bedges,vlen,len(bh))
+                L=(b-a)*wl
+                if vtot+L>P['veg_length_cap_m']: L=max(0.0,P['veg_length_cap_m']-vtot)
+                if L>0: vsegs.append(L); vtot+=L
+        geo[s['id']]=(dm,Ks,bedges,vsegs,len(bh))
     row=[round(la,6),round(lo,6),1 if inbld else 0]
     summary=None; bestglob=-999
     for op in OPS:
@@ -95,13 +95,13 @@ for idx,((la,lo),pe) in enumerate(zip(grid,gel)):
                         br=bearing_deg(s['lat'],s['lon'],la,lo)
                         sg=max(sector_gain(br-a,HPBW,FTB) for a in azs)
                 elif op not in s['ops'] or cfg['tech'] not in s['ops'][op]: continue
-                dm,Ks,bedges,vlen,nb=geo[s['id']]
+                dm,Ks,bedges,vsegs,nb=geo[s['id']]
                 if dm/1000.0>cfg['range_km']: continue
                 Lt=sum(Jv(K/sq) for K in Ks)
                 Lb=min(sum(min(Jv(K/sq),P['building_shadow_cap_per_dB']) for K in bedges), P['building_shadow_cap_total_dB'])
-                Lv=min(weissberger(fg,vlen), P['veg_loss_cap_dB'])
+                Lv=min(sum(weissberger(fg,L) for L in vsegs), P['veg_loss_cap_dB'])
                 r=cfg['eirp']+sg-OFF[sc]-fspl(cfg['f'],dm)-Lt-Lb-Lv
-                if r>best: best=r; bgeo=(nb,vlen)
+                if r>best: best=r; bgeo=(nb,round(sum(vsegs)))
             row.append(round(best) if best>-900 else -999)
             if sc=='4G800' and best>bestglob and bgeo:
                 bestglob=best; summary=bgeo
